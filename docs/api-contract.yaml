@@ -1,0 +1,465 @@
+openapi: 3.0.3
+info:
+  title: TRINETRA VA System API Contract
+  description: >
+    Integration Contract 2 between Backend (Person C) and Frontend Commander Dashboard (Person D).
+    Fully operational in offline/LAN environment at Border Outpost (BOP).
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000
+    description: Local BOP Edge Server
+
+paths:
+  /api/auth/login:
+    post:
+      summary: Login and obtain JWT token
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+
+  /api/cameras:
+    get:
+      summary: List registered cameras with status and live trust scores
+      tags: [Cameras]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of cameras
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Camera'
+
+  /api/cameras/{id}/calibrate:
+    post:
+      summary: Submit ground-plane reference calibration points
+      tags: [Cameras]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalibrationRequest'
+      responses:
+        '200':
+          description: Calibration points updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericStatusResponse'
+
+  /api/geofence/{camera_id}:
+    get:
+      summary: Get configured geo-fence polygon for camera
+      tags: [GeoFence]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: camera_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeoFencePolygon'
+    put:
+      summary: Update geo-fence polygon for camera
+      tags: [GeoFence]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: camera_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeoFencePolygon'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericStatusResponse'
+
+  /api/entities:
+    get:
+      summary: Query logged entities with filters
+      tags: [Entities]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: camera_id
+          in: query
+          schema: { type: string }
+        - name: entity_type
+          in: query
+          schema: { type: string, enum: [human, vehicle, animal] }
+        - name: is_alert
+          in: query
+          schema: { type: boolean }
+        - name: start_time
+          in: query
+          schema: { type: string, format: date-time }
+        - name: end_time
+          in: query
+          schema: { type: string, format: date-time }
+        - name: color
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EntityLog'
+
+  /api/entities/{id}:
+    delete:
+      summary: Manually delete an entity record with audit log (Requires Admin/Commander)
+      tags: [Entities]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: reason
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericStatusResponse'
+        '403':
+          description: Operator not allowed to delete records
+
+  /api/entities/{id}/false-flag:
+    post:
+      summary: Mark detection as false positive
+      tags: [Entities]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FalseFlagRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FalseFlagResponse'
+
+  /api/entities/{id}/export:
+    post:
+      summary: Build and export HQ package (offline bundle)
+      tags: [Export]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportResponse'
+
+  /api/alerts/active:
+    get:
+      summary: Get current active unacknowledged alerts
+      tags: [Alerts]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AlertDetail'
+
+  /api/alerts/{id}/acknowledge:
+    post:
+      summary: Acknowledge an active alert
+      tags: [Alerts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcknowledgeRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericStatusResponse'
+
+  /api/search:
+    post:
+      summary: Multilingual structured/synonym forensic search
+      tags: [Search]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string }
+        password: { type: string }
+
+    LoginResponse:
+      type: object
+      required: [access_token, token_type, role, user_id, username]
+      properties:
+        access_token: { type: string }
+        token_type: { type: string, example: bearer }
+        role: { type: string, enum: [commander, operator, admin] }
+        user_id: { type: string, format: uuid }
+        username: { type: string }
+
+    Camera:
+      type: object
+      required: [camera_id, status, trust_score]
+      properties:
+        camera_id: { type: string }
+        location:
+          type: object
+          properties:
+            lat: { type: number }
+            lon: { type: number }
+        fov_polygon: { type: array, items: { type: array, items: { type: number } } }
+        geo_fence_polygon: { type: array, items: { type: array, items: { type: number } } }
+        calibration_reference_points: { type: object }
+        trust_score: { type: number }
+        status: { type: string, enum: [online, degraded, offline] }
+        last_tamper_check: { type: string, format: date-time }
+
+    CalibrationRequest:
+      type: object
+      required: [points]
+      properties:
+        points:
+          type: array
+          items:
+            type: object
+            properties:
+              pixel_x: { type: number }
+              pixel_y: { type: number }
+              world_x: { type: number }
+              world_y: { type: number }
+
+    GeoFencePolygon:
+      type: object
+      required: [coordinates]
+      properties:
+        coordinates:
+          type: array
+          minItems: 3
+          items:
+            type: array
+            items: { type: number }
+            minItems: 2
+            maxItems: 2
+
+    EntityLog:
+      type: object
+      required: [id, camera_id, timestamp, entity_type, is_alert]
+      properties:
+        id: { type: string, format: uuid }
+        camera_id: { type: string }
+        timestamp: { type: string, format: date-time }
+        entity_type: { type: string, enum: [human, vehicle, animal] }
+        upper_color: { type: string, nullable: true }
+        lower_color: { type: string, nullable: true }
+        height_cm: { type: number, nullable: true }
+        gender: { type: string, enum: [male, female, neutral], nullable: true }
+        plate_text: { type: string, nullable: true }
+        location:
+          type: object
+          properties:
+            lat: { type: number }
+            lon: { type: number }
+        trajectory_id: { type: string, format: uuid, nullable: true }
+        is_alert: { type: boolean }
+        alert_type: { type: string, enum: [geo_fence, behavior, tamper, correlated], nullable: true }
+        confidence_score: { type: number }
+        clip_path: { type: string, nullable: true }
+        thumbnail_path: { type: string, nullable: true }
+        retention_tier: { type: string, enum: [passive, protected] }
+        deleted_manually: { type: boolean }
+
+    AlertDetail:
+      type: object
+      required: [id, camera_id, timestamp, alert_type, confidence_score]
+      properties:
+        id: { type: string, format: uuid }
+        camera_id: { type: string }
+        timestamp: { type: string, format: date-time }
+        alert_type: { type: string }
+        rule_fired: { type: string }
+        confidence_score: { type: number }
+        thumbnail_url: { type: string }
+        clip_url: { type: string }
+        acknowledged: { type: boolean }
+        entity_details: { $ref: '#/components/schemas/EntityLog' }
+
+    FalseFlagRequest:
+      type: object
+      properties:
+        moved_to_hard_negatives: { type: boolean, default: true }
+        notes: { type: string }
+
+    FalseFlagResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        entity_log_id: { type: string, format: uuid }
+        marked_by: { type: string }
+        marked_at: { type: string, format: date-time }
+        moved_to_hard_negatives: { type: boolean }
+
+    ExportRequest:
+      type: object
+      properties:
+        include_clip: { type: boolean, default: true }
+        channel: { type: string, default: local_bundle }
+
+    ExportResponse:
+      type: object
+      properties:
+        export_id: { type: string, format: uuid }
+        entity_log_id: { type: string, format: uuid }
+        payload_hash: { type: string }
+        download_url: { type: string }
+        exported_at: { type: string, format: date-time }
+        channel: { type: string }
+
+    AcknowledgeRequest:
+      type: object
+      properties:
+        notes: { type: string }
+
+    SearchRequest:
+      type: object
+      properties:
+        query: { type: string, description: "Free-text query in English, Hindi, or Hinglish (e.g. 'kal subah laal shirt')" }
+        camera_id: { type: string }
+        entity_type: { type: string, enum: [human, vehicle, animal] }
+        upper_color: { type: string }
+        lower_color: { type: string }
+        start_time: { type: string, format: date-time }
+        end_time: { type: string, format: date-time }
+        alert_only: { type: boolean }
+        limit: { type: integer, default: 50 }
+        offset: { type: integer, default: 0 }
+
+    SearchResponse:
+      type: object
+      properties:
+        parsed_filters:
+          type: object
+          properties:
+            resolved_terms: { type: object }
+            unresolved_terms: { type: array, items: { type: string } }
+        total_count: { type: integer }
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/EntityLog'
+
+    GenericStatusResponse:
+      type: object
+      properties:
+        status: { type: string }
+        message: { type: string }

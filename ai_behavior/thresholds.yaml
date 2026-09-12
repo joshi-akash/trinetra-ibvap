@@ -1,3 +1,9 @@
+# ==============================================================================
+# TRINETRA — Consolidated AI & Rule Engine Thresholds
+# Joint contract: Person B (AI Behavior & Night Vision) & Person C (Backend Rule Engine)
+# ==============================================================================
+
+# --- Track B: Pose, Night Enhancement & Tamper Thresholds ---
 spine_inclination_threshold: 30.0
 crouch_threat_score: 0.90
 tamper_variance_collapse: 12.0
@@ -9,3 +15,48 @@ tamper_blindfold_ratio: 0.90
 tamper_static_freeze_delta: 0.10
 tamper_static_freeze_time_s: 3.0
 tamper_reference_drift_threshold: 0.15
+
+# --- Track C: Rule Engine & Ingestion Bifurcation Thresholds ---
+geofence:
+  enabled: true
+  min_confidence: 0.50
+
+behavior:
+  suspicious_postures:
+    - "crouching"
+    - "sprinting"
+    - "prone"
+  posture_confidence_floor: 0.65
+  threat_props:
+    - "weapon"
+    - "covered_face"
+    - "large_backpack"
+  prop_confidence_floor: 0.70
+
+face_recognition:
+  match_confidence_threshold: 0.80
+
+tamper:
+  min_laplacian_variance: 100.0  # Below this indicates blur/defocus/cover
+  variance_drop_percentage: 50.0  # Sudden drop indicates occlusion
+  enable_drift_detection: true
+
+corroboration:
+  # Multi-modal corroboration requirement for highest severity tier (FR-ALR-04)
+  require_two_signals_for_highest_tier: true
+  highest_tier_threats:
+    - "armed_intruder"
+    - "perimeter_breach_tampered"
+    - "night_stealth_intrusion"
+
+low_light:
+  enabled: true
+  min_lux_threshold: 45.0             # Below this triggers low-light mode
+  adaptive_confidence_discount: 0.10  # Night adaptive discount for detection floor
+  night_retention_days: 60            # Extended retention for night sector activity
+  night_tamper_variance_floor: 30.0   # Lowered blur floor in pitch darkness to eliminate false tamper alarms
+  night_stealth_escalation: true      # Low-light crawling escalates severity
+
+retention:
+  passive_retention_days: 30
+  protected_retention_days: -1        # Never auto-purged

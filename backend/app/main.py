@@ -1,0 +1,62 @@
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+from backend.app.config import settings, PROJECT_ROOT
+from backend.app.database import init_db
+from backend.app.api.auth import router as auth_router
+from backend.app.api.cameras import router as cameras_router
+from backend.app.api.geofence import router as geofence_router
+from backend.app.api.entities import router as entities_router
+from backend.app.api.alerts import router as alerts_router
+from backend.app.api.search import router as search_router
+from backend.app.api.ws_alerts import ws_router
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Initialize database schema & seed data
+    init_db()
+    yield
+    # Shutdown: Cleanup if needed
+
+app = FastAPI(
+    title="TRINETRA VA Edge Server",
+    description="Offline-First Tactical AI-CCTV Video Analytics Backend & Infrastructure",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# CORS Configuration for local frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Mount Static Storage Directories for Evidence Retrieval
+app.mount("/storage/clips", StaticFiles(directory=str(settings.CLIPS_DIR)), name="clips")
+app.mount("/storage/thumbnails", StaticFiles(directory=str(settings.THUMBNAILS_DIR)), name="thumbnails")
+app.mount("/storage/exports", StaticFiles(directory=str(settings.EXPORTS_DIR)), name="exports")
+
+# Register API & WebSocket Routers
+app.include_router(auth_router)
+app.include_router(cameras_router)
+app.include_router(geofence_router)
+app.include_router(entities_router)
+app.include_router(alerts_router)
+app.include_router(search_router)
+app.include_router(ws_router)
+
+@app.get("/api/health", tags=["Health"])
+def health_check():
+    return {
+        "status": "healthy",
+        "system": "TRINETRA",
+        "sovereign_offline_ready": True
+    }
+
+
+
