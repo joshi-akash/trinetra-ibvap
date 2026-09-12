@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+
+# Pytest
+.pytest_cache/
+.cache/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Models (large binary files — use download_weights.sh)
+models/*.pt
+models/*.pth
+models/*.onnx
+models/*.tflite
+
+# Test footage (large video files)
+test_footage/*.mp4
+test_footage/*.avi
+test_footage/*.mkv
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+pyrightconfig.json

@@ -1,0 +1,11 @@
+spine_inclination_threshold: 30.0
+crouch_threat_score: 0.90
+tamper_variance_collapse: 12.0
+visibility_limits:
+  - 0.40
+  - 0.80
+zero_dce_threshold: 0.65
+tamper_blindfold_ratio: 0.90
+tamper_static_freeze_delta: 0.10
+tamper_static_freeze_time_s: 3.0
+tamper_reference_drift_threshold: 0.15
