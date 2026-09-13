@@ -132,3 +132,24 @@ def test_low_light_frame_ingestion_and_bifurcation(client):
     data = res.json()
     assert data["status"] == "success"
     assert "Processed frame" in data["message"]
+
+def test_stream_update_presets_and_clearing(client, auth_headers):
+    """Verify updating camera stream with presets, empty strings, and auto-registration."""
+    # 1. Update CAM-01 to highway patrol preset
+    res1 = client.put("/api/cameras/CAM-01/stream", json={"stream_url": "/footage/highway_patrol.mp4"}, headers=auth_headers)
+    assert res1.status_code == 200
+    assert res1.json()["status"] == "success"
+
+    # 2. Revert CAM-01 to radar mode via empty string
+    res2 = client.put("/api/cameras/CAM-01/stream", json={"stream_url": ""}, headers=auth_headers)
+    assert res2.status_code == 200
+    assert res2.json()["status"] == "success"
+
+    # 3. Auto-create unregistered camera when updating stream
+    res3 = client.put("/api/cameras/CAM-NEW-42/stream", json={"stream_url": "/footage/night_patrol.mp4"}, headers=auth_headers)
+    assert res3.status_code == 200
+    assert res3.json()["status"] == "success"
+
+    # Verify CAM-NEW-42 exists
+    cam_res = client.get("/api/cameras", headers=auth_headers)
+    assert any(c["camera_id"] == "CAM-NEW-42" and c["stream_url"] == "/footage/night_patrol.mp4" for c in cam_res.json())

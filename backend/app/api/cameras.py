@@ -95,13 +95,29 @@ def update_camera_stream(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    camera = db.query(CameraRegistry).filter(CameraRegistry.camera_id == camera_id).first()
-    if not camera:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera not found")
+    clean_id = (camera_id or "").strip()
+    if not clean_id:
+        clean_id = "CAM-01"
 
-    camera.stream_url = req.stream_url
+    camera = db.query(CameraRegistry).filter(CameraRegistry.camera_id == clean_id).first()
+    new_url = req.stream_url.strip() if (req.stream_url and req.stream_url.strip()) else None
+
+    if not camera:
+        # Auto-create camera if not already registered
+        camera = CameraRegistry(
+            camera_id=clean_id,
+            location_lat=29.9457,
+            location_lon=78.1642,
+            status="online",
+            trust_score=0.98,
+            stream_url=new_url
+        )
+        db.add(camera)
+    else:
+        camera.stream_url = new_url
+
     db.commit()
-    return GenericStatusResponse(status="success", message=f"Stream URL updated for {camera_id}")
+    return GenericStatusResponse(status="success", message=f"Stream URL updated for {clean_id}")
 
 @router.post("/{camera_id}/upload-footage", response_model=GenericStatusResponse)
 async def upload_camera_footage(

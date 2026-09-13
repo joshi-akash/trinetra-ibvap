@@ -63,6 +63,8 @@ def _auto_migrate_sqlite(db_engine):
             if col not in ent_cols:
                 cur.execute(f"ALTER TABLE entity_log ADD COLUMN {col} {col_type}")
                 
+        # Replace any obsolete cloud storage stream URLs with local offline presets
+        cur.execute("UPDATE camera_registry SET stream_url = '/footage/highway_patrol.mp4' WHERE stream_url LIKE '%googleapis%'")
         conn.commit()
         conn.close()
     except Exception:
@@ -125,14 +127,15 @@ def init_db():
                     location_lon=78.1650,
                     trust_score=0.95,
                     status="online",
-                    stream_url="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+                    stream_url="/footage/highway_patrol.mp4"
                 ),
                 CameraRegistry(
                     camera_id="CAM-03",
                     location_lat=29.9450,
                     location_lon=78.1635,
                     trust_score=0.92,
-                    status="online"
+                    status="online",
+                    stream_url="/footage/night_patrol.mp4"
                 ),
                 CameraRegistry(
                     camera_id="CAM-04",

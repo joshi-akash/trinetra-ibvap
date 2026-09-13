@@ -42,7 +42,7 @@ class CameraCreate(BaseModel):
     stream_url: Optional[str] = None
 
 class StreamUpdateRequest(BaseModel):
-    stream_url: str
+    stream_url: Optional[str] = None
 
 class CalibrationPoint(BaseModel):
     pixel_x: float
