@@ -1,7 +1,0 @@
-# Gitignore for weights in models/ per integration contract
-*.pt
-*.pth
-*.onnx
-*.engine
-*.tar
-*.zip

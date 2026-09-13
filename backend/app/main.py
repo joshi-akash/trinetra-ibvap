@@ -41,6 +41,18 @@ app.mount("/storage/clips", StaticFiles(directory=str(settings.CLIPS_DIR)), name
 app.mount("/storage/thumbnails", StaticFiles(directory=str(settings.THUMBNAILS_DIR)), name="thumbnails")
 app.mount("/storage/exports", StaticFiles(directory=str(settings.EXPORTS_DIR)), name="exports")
 
+from pathlib import Path
+from fastapi.responses import FileResponse
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+@app.get("/", include_in_schema=False)
+@app.get("/dashboard", include_in_schema=False)
+def get_dashboard():
+    index_file = STATIC_DIR / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
+    return {"message": "TRINETRA VA Edge Server Running. Visit /docs for Swagger UI"}
+
 # Register API & WebSocket Routers
 app.include_router(auth_router)
 app.include_router(cameras_router)
