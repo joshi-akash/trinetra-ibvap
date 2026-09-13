@@ -31,6 +31,14 @@ class CameraOut(BaseModel):
     status: str
     last_tamper_check: Optional[datetime] = None
 
+class CameraCreate(BaseModel):
+    camera_id: str
+    location_lat: Optional[float] = 29.9457
+    location_lon: Optional[float] = 78.1642
+    status: Optional[str] = "online"
+    trust_score: Optional[float] = 0.95
+    geo_fence_polygon: Optional[List[List[float]]] = None
+
 class CalibrationPoint(BaseModel):
     pixel_x: float
     pixel_y: float
