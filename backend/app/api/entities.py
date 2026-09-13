@@ -254,6 +254,40 @@ def export_entity_record(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
+@router.delete("/purge-all", response_model=GenericStatusResponse)
+def purge_all_logs(
+    reason: Optional[str] = Query("Operator manual purge / operational test reset", description="Mandatory reason for audit ledger"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(["commander", "admin"]))
+):
+    """
+    Administrative / operational purge: Deletes all entity and alert logs from the database,
+    logging the purge action into the sovereign audit ledger.
+    """
+    total_purged = db.query(EntityLog).delete()
+    db.commit()
+
+    # Record in audit log
+    audit_entry = AuditLog(
+        id=str(uuid.uuid4()),
+        user_id=current_user.id,
+        action="PURGE_ALL_LOGS",
+        target_id="ALL_RECORDS",
+        timestamp=datetime.now(timezone.utc),
+        details={
+            "deleted_count": total_purged,
+            "purged_by_username": current_user.username,
+            "reason": reason
+        }
+    )
+    db.add(audit_entry)
+    db.commit()
+
+    return GenericStatusResponse(
+        status="success",
+        message=f"Successfully purged {total_purged} detection and alert records from database."
+    )
+
 @router.delete("/{entity_id}", response_model=GenericStatusResponse)
 def manually_delete_entity(
     entity_id: str,

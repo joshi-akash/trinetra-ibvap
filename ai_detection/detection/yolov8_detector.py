@@ -28,18 +28,34 @@ COCO_ANIMAL_IDS = {14, 15, 16, 17, 18, 19, 20, 21, 22, 23}  # bird, cat, dog, ho
 BORDER_CLASS_MAP = {
     "person": "human",
     "human": "human",
+    "pedestrian": "human",
+    "man": "human",
+    "woman": "human",
+    "people": "human",
     "car": "vehicle",
     "truck": "vehicle",
     "bus": "vehicle",
     "motorcycle": "vehicle",
+    "motorbike": "vehicle",
     "bicycle": "vehicle",
+    "bike": "vehicle",
     "vehicle": "vehicle",
+    "van": "vehicle",
+    "suv": "vehicle",
+    "jeep": "vehicle",
+    "pickup": "vehicle",
+    "auto": "vehicle",
+    "rickshaw": "vehicle",
+    "train": "vehicle",
+    "boat": "vehicle",
     "animal_drawn_cart": "vehicle",
     "animal": "animal",
     "dog": "animal",
     "cow": "animal",
     "horse": "animal",
     "sheep": "animal",
+    "cat": "animal",
+    "bird": "animal",
     "weapon": "weapon",
     "large_backpack": "large_backpack",
 }
@@ -89,18 +105,26 @@ class YOLOv8Detector:
 
     def __init__(
         self,
-        model_path: str = "models/yolov8s.pt",
-        confidence_threshold: float = 0.5,
+        model_path: Optional[str] = None,
+        confidence_threshold: float = 0.25,
         device: Optional[str] = None,
     ):
         """
-        Initialize the YOLOv8 detector.
+        Initialize the YOLOv8 detector with balanced confidence for CCTV surveillance.
 
         Args:
-            model_path: Path to YOLOv8 weights (e.g. models/yolov8s.pt)
-            confidence_threshold: Minimum confidence score for detections
+            model_path: Path to YOLOv8 weights (defaults to models/yolov8_custom.pt if present, else models/yolov8s.pt)
+            confidence_threshold: Minimum confidence score for detections (default: 0.25 for CCTV recall)
             device: 'cuda', 'cpu', or None for auto-detection
         """
+        if model_path is None:
+            if os.path.exists("models/yolov8_custom.pt"):
+                model_path = "models/yolov8_custom.pt"
+            elif os.path.exists("models/yolov8s.pt"):
+                model_path = "models/yolov8s.pt"
+            else:
+                model_path = "yolov8s.pt"
+
         self.model_path = model_path
         self.confidence_threshold = confidence_threshold
         self.device = device
@@ -138,6 +162,9 @@ class YOLOv8Detector:
             cname = class_name.lower().strip()
             if cname in BORDER_CLASS_MAP:
                 return BORDER_CLASS_MAP[cname]
+            for k, v in BORDER_CLASS_MAP.items():
+                if k in cname:
+                    return v
 
         if class_id in COCO_HUMAN_IDS:
             return "human"
@@ -174,6 +201,8 @@ class YOLOv8Detector:
                 pred_results = self.model.predict(
                     source=frame,
                     conf=conf,
+                    imgsz=640,
+                    iou=0.45,
                     verbose=False,
                 )
 
