@@ -70,3 +70,6 @@ Thumbs.db
 # Local working artifacts
 brain.md
 files/
+
+*.db-shm
+*.db-wal
