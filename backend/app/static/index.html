@@ -445,7 +445,7 @@
       <button id="night-vision-global-btn" class="btn" style="background:#064e3b; border-color:#059669; color:#6ee7b7;" onclick="toggleGlobalNightVision()">🌙 Night-Vision: OFF</button>
       <button class="btn" style="background:#312e81; border-color:#6366f1; color:#c7d2fe;" onclick="triggerSimulatedNightBreach()">🌙 Simulate Zero-Light Infiltration</button>
       <button class="btn btn-danger" onclick="triggerSimulatedBreach()">🚨 Simulate Breach</button>
-      <button class="btn" style="background:#1e1b4b; border-color:#818cf8; color:#a5b4fc;" onclick="openTrainingModal()">🎯 AI Dataset & Training</button>
+      <button class="btn" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); border-color:#a78bfa; color:#fff; font-weight:700; box-shadow: 0 0 14px rgba(124, 58, 237, 0.45);" onclick="openTrainingModal()">🧠 Train Model</button>
       <a href="/docs" target="_blank" class="btn">📖 API Specs</a>
     </div>
   </header>
@@ -698,54 +698,152 @@
   </div>
 
   
-  <!-- AI MODEL TRAINING & CCTV DATASET HUB MODAL -->
+  <!-- AI CONTINUOUS MODEL TRAINING & STREAM FINE-TUNING PIPELINE MODAL -->
   <div id="training-modal" class="modal-overlay">
-    <div class="modal-box" style="border-color:#818cf8; width:700px;">
+    <div class="modal-box" style="border-color:#818cf8; width:760px; max-width:96vw; max-height:92vh; display:flex; flex-direction:column;">
       <div class="modal-header">
-        <div class="modal-title" style="color:#a5b4fc;">🎯 AI MODEL FINE-TUNING & CCTV DATASET HUB</div>
-        <button onclick="closeTrainingModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;">&times;</button>
+        <div>
+          <div class="modal-title" style="color:#c7d2fe; font-size:1.15rem;">🧠 CONTINUOUS MODEL TRAINING & FINE-TUNING</div>
+          <div style="font-size:0.75rem; color:var(--text-muted); margin-top:3px;">
+            Auto-extract keyframes, pseudo-label bounding boxes, and fine-tune YOLOv8 from live CCTV streams or uploaded videos.
+          </div>
+        </div>
+        <button onclick="closeTrainingModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.5rem; cursor:pointer;">&times;</button>
       </div>
-      <div style="display:flex; flex-direction:column; gap:12px; font-size:0.85rem; max-height:72vh; overflow-y:auto; padding-right:6px;">
+
+      <div style="display:flex; flex-direction:column; gap:12px; font-size:0.85rem; overflow-y:auto; padding-right:6px; flex:1;">
         
-        <div style="background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); border-radius:6px; padding:12px;">
-          <h4 style="color:#c7d2fe; margin-bottom:6px; font-size:0.92rem;">Recommended Public CCTV & Low-Light Datasets for Highest Accuracy</h4>
-          <p style="color:var(--text-muted); font-size:0.75rem; margin-bottom:8px;">
-            To achieve near-100% accuracy in zero-light and complex outdoor scenarios, upload and fine-tune using these industry benchmarks:
-          </p>
-          <ul style="margin-left:18px; color:#e0e7ff; font-size:0.76rem; display:flex; flex-direction:column; gap:5px;">
-            <li><strong>🌙 ExDark (Exclusively Dark Dataset):</strong> 7,363 low-light images across 12 classes (humans, cars, bicycles) in 10 different low-light environments. Perfect for pitch-dark detection.</li>
-            <li><strong>✨ LOL (Low-Light Dataset):</strong> 500 paired real-world dark/normal exposure images designed specifically for Zero-DCE deep curve tuning.</li>
-            <li><strong>📹 VIRAT Video Dataset & MOT20:</strong> Realistic security camera footage for human intrusion, loitering, and vehicle tracking under challenging angles.</li>
-            <li><strong>🚗 UFPR-AMPR & OpenALPR:</strong> 4,500 high-resolution vehicle plates under varied lighting for ANPR fine-tuning.</li>
-            <li><strong>🌐 Roboflow Universe:</strong> Search <code>border-surveillance</code>, <code>night-vision-cctv</code>, or <code>indian-license-plates</code> and export as <code>YOLOv8</code> format.</li>
-          </ul>
-        </div>
+        <!-- Source Selection Tabs -->
+        <div style="background:#0b1320; border:1px solid #1e293b; border-radius:8px; padding:12px;">
+          <label style="font-size:0.75rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:8px;">
+            1. Select Training Video Source
+          </label>
+          <div class="segment-group" style="margin-bottom:12px; width:fit-content;">
+            <button class="segment-btn active" id="train-src-file-btn" onclick="switchTrainingSourceMode('file')">📁 Upload Video File</button>
+            <button class="segment-btn" id="train-src-stream-btn" onclick="switchTrainingSourceMode('stream')">🌐 YouTube / Live Stream URL</button>
+          </div>
 
-        <div style="background:#131d2e; border:1px solid var(--border-color); border-radius:6px; padding:12px;">
-          <h4 style="color:#38bdf8; margin-bottom:6px; font-size:0.88rem;">How to Retrain TRINETRA AI Models Locally</h4>
-          <div style="font-family:var(--font-mono); font-size:0.75rem; background:#070d18; padding:8px; border-radius:4px; border:1px solid #1e293b; color:#38bdf8; line-height:1.5;">
-            # Step 1: Download or place dataset ZIP into project data/<br>
-            python ai_detection/training/dataset_downloader.py --source zip --zip-file data/night_dataset.zip --output-dir data/border_dataset<br><br>
-            # Step 2: Launch fine-tuning with hard-negative harvesting<br>
-            python ai_detection/training/train_yolo_border.py --data data/border_dataset.yaml --weights models/yolov8s.pt --epochs 50 --device 0<br><br>
-            # Step 3: Evaluate Zero-DCE enhancement on test footage<br>
-            python ai_behavior/training/evaluate_lowvis.py
+          <!-- File Source -->
+          <div id="train-file-section" style="display:flex; flex-direction:column; gap:8px;">
+            <div style="border:2px dashed #4f46e5; border-radius:6px; background:rgba(79,70,229,0.06); padding:16px; text-align:center; cursor:pointer;" onclick="document.getElementById('train-video-file-input').click()">
+              <input type="file" id="train-video-file-input" accept="video/mp4,video/mkv,video/avi,video/webm" style="display:none;" onchange="onTrainingFileSelected(event)">
+              <div style="font-size:1.6rem; margin-bottom:4px;">🎥</div>
+              <div id="train-file-label" style="font-weight:700; color:#c7d2fe; font-size:0.88rem;">Click to select CCTV video (.mp4, .mkv, .avi)</div>
+              <div style="font-size:0.72rem; color:var(--text-muted); margin-top:4px;">Supports any warehouse, street, border, or nighttime surveillance recording</div>
+            </div>
+          </div>
+
+          <!-- Stream Source -->
+          <div id="train-stream-section" style="display:none; flex-direction:column; gap:8px;">
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="train-stream-url-input" class="text-input" placeholder="Enter YouTube Live URL (e.g. https://www.youtube.com/watch?v=...), HLS .m3u8, or RTSP" style="flex:1;">
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; font-size:0.72rem;">
+              <span style="color:var(--text-muted);">Tactical Presets:</span>
+              <button class="btn" type="button" style="padding:2px 8px; font-size:0.7rem;" onclick="setTrainingStreamPreset('https://www.skylinewebcams.com/en/webcam/thailand/surat-thani/ko-samui/lamai.html')">🌴 Thailand Lamai Beach</button>
+              <button class="btn" type="button" style="padding:2px 8px; font-size:0.7rem;" onclick="setTrainingStreamPreset('https://www.youtube.com/watch?v=1-iS7LArMPA')">🔴 YouTube Live Stream</button>
+            </div>
           </div>
         </div>
 
-        <div style="padding:12px; border-radius:6px; border:1px dashed #818cf8; background:rgba(99,102,241,0.06); display:flex; justify-content:space-between; align-items:center;">
+        <!-- Hyperparameters & Settings -->
+        <div style="background:#0b1320; border:1px solid #1e293b; border-radius:8px; padding:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
           <div>
-            <span style="font-size:0.82rem; font-weight:700; color:#fff;">Upload Training Video / Test Footage</span>
-            <p style="font-size:0.72rem; color:var(--text-muted);">Upload .mp4 / .avi video directly into test_footage/ for evaluation</p>
+            <label style="font-size:0.75rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">Training Epochs</label>
+            <input type="number" id="train-epochs-input" class="text-input" value="3" min="1" max="25" style="width:100%;">
+            <span style="font-size:0.7rem; color:var(--text-muted);">Fast convergence: 3-5 epochs (1-2 min)</span>
           </div>
+
           <div>
-            <input type="file" id="training-footage-picker" accept="video/*" style="display:none;" onchange="uploadTrainingFootage(event)">
-            <button class="btn" type="button" style="border-color:#818cf8; color:#c7d2fe;" onclick="document.getElementById('training-footage-picker').click()">📁 Upload Footage</button>
+            <label style="font-size:0.75rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">Max Sample Keyframes</label>
+            <input type="number" id="train-max-frames-input" class="text-input" value="40" min="15" max="120" style="width:100%;">
+            <span style="font-size:0.7rem; color:var(--text-muted);">Frame sampling count across stream</span>
+          </div>
+
+          <div>
+            <label style="font-size:0.75rem; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">Base Architecture</label>
+            <select id="train-base-weights-select" class="select-input" style="width:100%;">
+              <option value="models/yolov8n.pt">YOLOv8 Nano (yolov8n.pt - Ultra Low Latency)</option>
+              <option value="models/yolov8s.pt" selected>YOLOv8 Small (yolov8s.pt - Balanced Tactical)</option>
+            </select>
+          </div>
+
+          <div style="display:flex; flex-direction:column; justify-content:center;">
+            <label style="display:flex; align-items:center; gap:8px; font-size:0.78rem; font-weight:600; color:#e2e8f0; cursor:pointer;">
+              <input type="checkbox" id="train-lowlight-toggle" checked style="accent-color:#4f46e5; width:16px; height:16px;">
+              Zero-DCE Low-Light Preprocessing
+            </label>
+            <span style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">Auto-brighten dark CCTV frames before labeling</span>
+          </div>
+        </div>
+
+        <!-- Launch Button -->
+        <div style="display:flex; justify-content:flex-end;">
+          <button id="train-start-btn" class="btn" style="background:linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color:#fff; font-weight:700; padding:10px 20px; font-size:0.9rem;" onclick="startContinuousTraining()">
+            🚀 Start AI Fine-Tuning Pipeline
+          </button>
+        </div>
+
+        <!-- Real-Time Telemetry & Progress Box -->
+        <div id="train-telemetry-box" style="display:none; background:#070d18; border:1px solid #1e293b; border-radius:8px; padding:14px; flex-direction:column; gap:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:0.8rem; font-weight:700; color:#cbd5e1;">PIPELINE STATUS:</span>
+              <span id="train-status-badge" class="pill" style="background:#312e81; color:#c7d2fe;">INITIALIZING</span>
+            </div>
+            <div id="train-progress-percent" style="font-family:var(--font-mono); font-size:0.88rem; font-weight:700; color:#38bdf8;">0.0%</div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div style="width:100%; height:8px; background:#1e293b; border-radius:4px; overflow:hidden;">
+            <div id="train-progress-bar" style="width:0%; height:100%; background:linear-gradient(90deg, #4f46e5, #06b6d4); transition:width 0.3s ease;"></div>
+          </div>
+
+          <!-- Stats Grid -->
+          <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:8px; font-size:0.75rem; text-align:center;">
+            <div style="background:#0f172a; padding:6px; border-radius:4px; border:1px solid #1e293b;">
+              <div style="color:var(--text-muted); font-size:0.68rem;">EPOCH</div>
+              <div id="train-stat-epoch" style="font-weight:700; color:#fff; font-family:var(--font-mono);">0 / 0</div>
+            </div>
+            <div style="background:#0f172a; padding:6px; border-radius:4px; border:1px solid #1e293b;">
+              <div style="color:var(--text-muted); font-size:0.68rem;">FRAMES</div>
+              <div id="train-stat-frames" style="font-weight:700; color:#fff; font-family:var(--font-mono);">0</div>
+            </div>
+            <div style="background:#0f172a; padding:6px; border-radius:4px; border:1px solid #1e293b;">
+              <div style="color:var(--text-muted); font-size:0.68rem;">BOXES</div>
+              <div id="train-stat-boxes" style="font-weight:700; color:#38bdf8; font-family:var(--font-mono);">0</div>
+            </div>
+            <div style="background:#0f172a; padding:6px; border-radius:4px; border:1px solid #1e293b;">
+              <div style="color:var(--text-muted); font-size:0.68rem;">BOX LOSS</div>
+              <div id="train-stat-loss" style="font-weight:700; color:#f59e0b; font-family:var(--font-mono);">0.0000</div>
+            </div>
+            <div style="background:#0f172a; padding:6px; border-radius:4px; border:1px solid #1e293b;">
+              <div style="color:var(--text-muted); font-size:0.68rem;">ELAPSED</div>
+              <div id="train-stat-duration" style="font-weight:700; color:#10b981; font-family:var(--font-mono);">0.0s</div>
+            </div>
+          </div>
+
+          <!-- Terminal Logs -->
+          <div>
+            <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:4px; font-weight:700;">EXECUTION CONSOLE STREAM:</div>
+            <div id="train-terminal-logs" style="background:#020617; border:1px solid #0f172a; border-radius:4px; padding:8px; height:110px; overflow-y:auto; font-family:var(--font-mono); font-size:0.72rem; color:#38bdf8; line-height:1.4;">
+              [SYSTEM] Ready to begin training pass...
+            </div>
+          </div>
+
+          <!-- Hot Reload Action Button -->
+          <div id="train-completion-actions" style="display:none; justify-content:space-between; align-items:center; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); padding:10px; border-radius:6px;">
+            <div style="color:#6ee7b7; font-size:0.8rem; font-weight:600;">
+              ✨ Fine-tuning completed! Custom weights saved to <code>models/yolov8_custom.pt</code>
+            </div>
+            <button id="train-apply-weights-btn" class="btn" style="background:#059669; border-color:#10b981; color:#fff; font-weight:700;" onclick="applyTrainedWeights()">
+              ⚡ Hot-Reload Active Fleet With New Weights
+            </button>
           </div>
         </div>
 
       </div>
-      <div class="modal-actions">
+      <div class="modal-actions" style="margin-top:12px;">
         <button class="btn" onclick="closeTrainingModal()">Close</button>
       </div>
     </div>
@@ -2068,6 +2166,199 @@ ${data.message}`);
 
       loadAlerts();
       loadLogs();
+    }
+
+    // --- 12. Continuous Model Training Engine ---
+    let trainingPollInterval = null;
+    let currentTrainingSourceMode = 'file';
+    let selectedTrainingFile = null;
+
+    function openTrainingModal() {
+      document.getElementById('training-modal').style.display = 'flex';
+      pollTrainingStatus();
+      if (!trainingPollInterval) {
+        trainingPollInterval = setInterval(pollTrainingStatus, 1500);
+      }
+    }
+
+    function closeTrainingModal() {
+      document.getElementById('training-modal').style.display = 'none';
+      if (trainingPollInterval) {
+        clearInterval(trainingPollInterval);
+        trainingPollInterval = null;
+      }
+    }
+
+    function switchTrainingSourceMode(mode) {
+      currentTrainingSourceMode = mode;
+      const fileBtn = document.getElementById('train-src-file-btn');
+      const streamBtn = document.getElementById('train-src-stream-btn');
+      const fileSec = document.getElementById('train-file-section');
+      const streamSec = document.getElementById('train-stream-section');
+
+      if (mode === 'file') {
+        fileBtn.classList.add('active');
+        streamBtn.classList.remove('active');
+        fileSec.style.display = 'flex';
+        streamSec.style.display = 'none';
+      } else {
+        fileBtn.classList.remove('active');
+        streamBtn.classList.add('active');
+        fileSec.style.display = 'none';
+        streamSec.style.display = 'flex';
+      }
+    }
+
+    function setTrainingStreamPreset(url) {
+      document.getElementById('train-stream-url-input').value = url;
+    }
+
+    function onTrainingFileSelected(event) {
+      const file = event.target.files[0];
+      if (file) {
+        selectedTrainingFile = file;
+        document.getElementById('train-file-label').innerText = `Selected: ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB)`;
+      }
+    }
+
+    async function startContinuousTraining() {
+      const epochs = parseInt(document.getElementById('train-epochs-input').value) || 3;
+      const maxFrames = parseInt(document.getElementById('train-max-frames-input').value) || 40;
+      const baseWeights = document.getElementById('train-base-weights-select').value;
+      const enhanceLowLight = document.getElementById('train-lowlight-toggle').checked;
+
+      const formData = new FormData();
+      formData.append('epochs', epochs);
+      formData.append('max_frames', maxFrames);
+      formData.append('base_weights', baseWeights);
+      formData.append('enhance_low_light', enhanceLowLight);
+
+      if (currentTrainingSourceMode === 'file') {
+        if (!selectedTrainingFile) {
+          alert("Please select a CCTV video file to train.");
+          return;
+        }
+        formData.append('file', selectedTrainingFile);
+      } else {
+        const streamUrl = document.getElementById('train-stream-url-input').value.trim();
+        if (!streamUrl) {
+          alert("Please enter a valid YouTube or live stream URL.");
+          return;
+        }
+        formData.append('stream_url', streamUrl);
+      }
+
+      const startBtn = document.getElementById('train-start-btn');
+      startBtn.disabled = true;
+      startBtn.innerText = "⏳ Initializing Training Pipeline...";
+
+      try {
+        const res = await fetch('/api/training/start-video-training', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+        const data = await res.json();
+        if (res.ok) {
+          document.getElementById('train-telemetry-box').style.display = 'flex';
+          pollTrainingStatus();
+        } else {
+          alert("Error launching training: " + (data.detail || JSON.stringify(data)));
+          startBtn.disabled = false;
+          startBtn.innerText = "🚀 Start AI Fine-Tuning Pipeline";
+        }
+      } catch (e) {
+        alert("Failed to connect to training API: " + e.message);
+        startBtn.disabled = false;
+        startBtn.innerText = "🚀 Start AI Fine-Tuning Pipeline";
+      }
+    }
+
+    async function pollTrainingStatus() {
+      try {
+        const res = await fetch('/api/training/status', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (data.status !== "IDLE") {
+          document.getElementById('train-telemetry-box').style.display = 'flex';
+        }
+
+        // Update badge
+        const badge = document.getElementById('train-status-badge');
+        badge.innerText = data.status;
+        if (data.status === "COMPLETED") {
+          badge.style.background = "#065f46";
+          badge.style.color = "#6ee7b7";
+          document.getElementById('train-completion-actions').style.display = 'flex';
+          document.getElementById('train-start-btn').disabled = false;
+          document.getElementById('train-start-btn').innerText = "🚀 Start Another Fine-Tuning Run";
+        } else if (data.status === "FAILED") {
+          badge.style.background = "#7f1d1d";
+          badge.style.color = "#fca5a5";
+          document.getElementById('train-start-btn').disabled = false;
+          document.getElementById('train-start-btn').innerText = "🚀 Retry AI Fine-Tuning";
+        } else if (data.status !== "IDLE") {
+          badge.style.background = "#312e81";
+          badge.style.color = "#c7d2fe";
+          document.getElementById('train-start-btn').disabled = true;
+          document.getElementById('train-start-btn').innerText = "⚡ Training Active...";
+        }
+
+        // Progress bar & metrics
+        document.getElementById('train-progress-percent').innerText = `${data.progress.toFixed(1)}%`;
+        document.getElementById('train-progress-bar').style.width = `${data.progress}%`;
+
+        document.getElementById('train-stat-epoch').innerText = `${data.current_epoch} / ${data.total_epochs}`;
+        document.getElementById('train-stat-frames').innerText = data.total_frames || 0;
+        document.getElementById('train-stat-boxes').innerText = data.annotated_boxes || 0;
+        document.getElementById('train-stat-loss').innerText = data.box_loss ? data.box_loss.toFixed(4) : "0.0000";
+        document.getElementById('train-stat-duration').innerText = `${data.duration_seconds || 0}s`;
+
+        // Console logs
+        if (data.logs && data.logs.length > 0) {
+          const terminal = document.getElementById('train-terminal-logs');
+          terminal.innerHTML = data.logs.map(l => `<div>${l}</div>`).join('');
+          terminal.scrollTop = terminal.scrollHeight;
+        }
+      } catch (e) {
+        console.warn("Training poll error:", e);
+      }
+    }
+
+    async function applyTrainedWeights() {
+      const applyBtn = document.getElementById('train-apply-weights-btn');
+      applyBtn.disabled = true;
+      applyBtn.innerText = "⏳ Reloading Active Detector...";
+
+      try {
+        const res = await fetch('/api/training/apply-weights', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ weights_path: "models/yolov8_custom.pt" })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert("🎉 Success! Active YOLOv8 detector successfully hot-reloaded with custom trained weights!");
+          applyBtn.innerText = "✅ Weights Active";
+          loadCameraMatrix();
+        } else {
+          alert("Failed to apply weights: " + (data.detail || data.message));
+          applyBtn.disabled = false;
+          applyBtn.innerText = "⚡ Hot-Reload Active Fleet With New Weights";
+        }
+      } catch (e) {
+        alert("Error applying weights: " + e.message);
+        applyBtn.disabled = false;
+        applyBtn.innerText = "⚡ Hot-Reload Active Fleet With New Weights";
+      }
     }
 
     // --- 13. WebSocket Live Bridge ---

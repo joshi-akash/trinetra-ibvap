@@ -1,0 +1,2 @@
+# TRINETRA Monorepo Production Dependencies
+-r backend/requirements.txt

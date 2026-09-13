@@ -1,23 +1,35 @@
 services:
-  postgres:
-    image: postgis/postgis:15-3.3
-    container_name: trinetra-postgres
-    restart: unless-stopped
+  trinetra-edge:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: trinetra-edge-server
+    restart: always
     environment:
-      POSTGRES_DB: trinetra
-      POSTGRES_USER: trinetra_admin
-      POSTGRES_PASSWORD: trinetra_secure_password
+      - ENVIRONMENT=production
+      - BIND_HOST=0.0.0.0
+      - PORT=8000
+      - DATABASE_URL=sqlite:////app/trinetra.db
+      - JWT_SECRET=trinetra_production_sovereign_key_change_in_deployment_32chars
+      - SOVEREIGN_OFFLINE=true
+      - ENABLE_LOW_LIGHT_DCE=true
     ports:
-      - "5432:5432"
+      - "8000:8000"
     volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - trinetra-db:/app/trinetra.db
+      - ./models:/app/models
+      - ./backend/storage:/app/backend/storage
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./runs:/app/runs
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U trinetra_admin -d trinetra"]
-      interval: 5s
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"]
+      interval: 15s
       timeout: 5s
-      retries: 5
+      retries: 3
+      start_period: 15s
 
+  # Optional Tactical MQTT Broker for External Sensor Telemetry
   mosquitto:
     image: eclipse-mosquitto:2.0
     container_name: trinetra-mosquitto
@@ -25,45 +37,8 @@ services:
     ports:
       - "1883:1883"
     volumes:
-      - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquittodata:/mosquitto/data
 
-  backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    container_name: trinetra-backend
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-      mosquitto:
-        condition: service_started
-    environment:
-      DATABASE_URL: postgresql://trinetra_admin:trinetra_secure_password@postgres:5432/trinetra
-      MQTT_BROKER_HOST: mosquitto
-      MQTT_BROKER_PORT: 1883
-      JWT_SECRET: trinetra_offline_jwt_secret_key_change_in_prod_32chars
-      STORAGE_DIR: /app/storage
-      THRESHOLDS_FILE: /app/ai_behavior/thresholds.yaml
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend/storage:/app/storage
-      - ./ai_behavior/thresholds.yaml:/app/ai_behavior/thresholds.yaml:ro
-
-  frontend:
-    image: nginx:alpine
-    container_name: trinetra-frontend
-    restart: unless-stopped
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-    volumes:
-      - ./frontend/dist:/usr/share/nginx/html:ro
-      - ./infra/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-
 volumes:
-  pgdata:
+  trinetra-db:
   mosquittodata:

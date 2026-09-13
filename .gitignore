@@ -70,3 +70,6 @@ Thumbs.db
 # Local working artifacts
 brain.md
 files/
+uploads/
+runs/
+data/custom_dataset/
