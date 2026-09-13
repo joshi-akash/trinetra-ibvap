@@ -19,6 +19,7 @@ FREEZE_TIME_S = config.get("tamper_static_freeze_time_s", 3.0)
 FREEZE_DELTA = config.get("tamper_static_freeze_delta", 0.10)
 
 class FrameOrchestrator:
+
     def __init__(self):
         self.zero_dce = ZeroDCE()
         self.posture_classifier = PostureClassifier()
@@ -28,12 +29,15 @@ class FrameOrchestrator:
         
         self.static_freeze_start = None
 
-    def process_frame(self, frame, camera_id, frame_ref, run_detection_stage_callback):
+    def process_frame(self, frame, camera_id="CAM-01", frame_ref=None, run_detection_stage_callback=None):
         """
         Executes the AI behavior pipeline and assembles the FrameAnalysis object.
         run_detection_stage_callback is expected to be a function provided by Person A 
         that takes an image and returns a list of detected entity dicts.
         """
+        if frame_ref is None:
+            frame_ref = f"frame_{int(time.time() * 1000)}"
+
         timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
         
         # 1. Night Enhancement & Visibility
@@ -60,7 +64,14 @@ class FrameOrchestrator:
         is_tampered = is_lens_covered or histogram_flag or reference_drift_flag or static_freeze
 
         # 3. Object Detection (Person A's stage)
-        raw_entities = run_detection_stage_callback(processing_frame)
+        if run_detection_stage_callback is not None:
+            raw_entities = run_detection_stage_callback(processing_frame)
+        else:
+            try:
+                from ai_detection import run_detection_stage
+                raw_entities = run_detection_stage(processing_frame, camera_id=camera_id)
+            except Exception:
+                raw_entities = []
         
         # 4. Pose & Prop Analytics
         enriched_entities = []
@@ -110,3 +121,10 @@ class FrameOrchestrator:
 
     def close(self):
         self.posture_classifier.close()
+
+# Joint Seam compatibility aliases
+OrchestratorPipeline = FrameOrchestrator
+
+def compute_laplacian_variance(frame):
+    variance, _ = check_laplacian_variance(frame)
+    return variance
