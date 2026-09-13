@@ -29,6 +29,140 @@ DEFAULT_BORDER_CLASSES = [
     "large_backpack",
 ]
 
+# Curated High-Accuracy Surveillance Dataset Catalog
+CURATED_DATASETS: Dict[str, Dict[str, Any]] = {
+    "starter_surveillance": {
+        "id": "starter_surveillance",
+        "name": "TRINETRA Sovereign Border & CCTV Starter Pack",
+        "description": "Pre-calibrated baseline dataset covering humans, perimeter vehicles, threat weapons, and large backpacks.",
+        "yaml_path": "data/surveillance_sample.yaml",
+        "classes": ["human", "vehicle", "weapon", "large_backpack"],
+        "num_classes": 4,
+        "is_builtin": True,
+        "recommended_epochs": 10,
+    },
+    "llvip_low_light": {
+        "id": "llvip_low_light",
+        "name": "LLVIP Low-Light & Thermal Night Surveillance Dataset",
+        "description": "Over 30,000 paired visible and infrared images specifically collected for night-vision human detection in dark security environments.",
+        "yaml_path": "data/llvip_night.yaml",
+        "source": "https://github.com/bupt-ai-cz/LLVIP",
+        "classes": ["human"],
+        "num_classes": 1,
+        "is_builtin": False,
+        "recommended_epochs": 15,
+    },
+    "weapon_threats": {
+        "id": "weapon_threats",
+        "name": "Roboflow Tactical Weapon & Knife Detection Dataset",
+        "description": "High-accuracy security dataset for handguns, knives, rifles, and firearms in CCTV camera angles.",
+        "yaml_path": "data/weapon_threats.yaml",
+        "source": "https://universe.roboflow.com/roboflow-100/weapon-detection-wbfdr",
+        "classes": ["pistol", "knife", "rifle", "firearm"],
+        "num_classes": 4,
+        "is_builtin": False,
+        "recommended_epochs": 20,
+    },
+    "mot20_pedestrian": {
+        "id": "mot20_pedestrian",
+        "name": "MOT20 High-Density Surveillance & Tracking Benchmark",
+        "description": "Crowded surveillance video tracking benchmark for occluded pedestrian detection, re-identification, and trajectory tracking.",
+        "yaml_path": "data/mot20_tracking.yaml",
+        "source": "https://motchallenge.net/data/MOT20/",
+        "classes": ["pedestrian"],
+        "num_classes": 1,
+        "is_builtin": False,
+        "recommended_epochs": 15,
+    }
+}
+
+
+def prepare_starter_surveillance_dataset(output_dir: str = "data/surveillance_sample") -> Dict[str, Any]:
+    """
+    Generate or verify the built-in starter surveillance training dataset.
+    Creates valid YOLOv8 images and label annotations for human, vehicle, weapon, and large_backpack.
+    """
+    import cv2
+    import numpy as np
+
+    os.makedirs(os.path.join(output_dir, "images", "train"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "images", "val"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "labels", "train"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "labels", "val"), exist_ok=True)
+
+    # Generate 12 starter calibrated surveillance training images + labels
+    splits = [("train", 10), ("val", 2)]
+    total_generated = 0
+
+    for split_name, count in splits:
+        img_dir = os.path.join(output_dir, "images", split_name)
+        lbl_dir = os.path.join(output_dir, "labels", split_name)
+
+        for idx in range(count):
+            img_file = os.path.join(img_dir, f"cctv_sample_{idx:03d}.jpg")
+            lbl_file = os.path.join(lbl_dir, f"cctv_sample_{idx:03d}.txt")
+
+            if not os.path.exists(img_file):
+                # Render simulated CCTV scene (640x360)
+                img = np.zeros((360, 640, 3), dtype=np.uint8)
+                # Background gradient (asphalt + ground)
+                for y in range(360):
+                    val = int(25 + (y / 360.0) * 35)
+                    img[y, :] = (val, val + 5, val + 10)
+
+                # Ground markings & lane lines
+                cv2.line(img, (0, 240), (640, 240), (60, 60, 60), 2)
+                cv2.line(img, (320, 180), (200, 360), (90, 85, 80), 2)
+
+                # Human 1 (class 0): center 0.35, 0.60, w=0.08, h=0.28
+                cv2.rectangle(img, (200, 165), (248, 265), (140, 130, 120), -1)
+                cv2.circle(img, (224, 150), 14, (180, 160, 140), -1)
+
+                # Backpack on human (class 3): center 0.32, 0.58, w=0.04, h=0.09
+                cv2.rectangle(img, (192, 180), (216, 215), (40, 40, 120), -1)
+
+                # Vehicle 1 (class 1): center 0.72, 0.65, w=0.25, h=0.22
+                cv2.rectangle(img, (380, 195), (540, 275), (80, 120, 160), -1)
+                cv2.circle(img, (415, 275), 15, (20, 20, 20), -1)
+                cv2.circle(img, (505, 275), 15, (20, 20, 20), -1)
+
+                # Weapon in second scene (class 2)
+                if idx % 2 == 1:
+                    cv2.line(img, (245, 200), (260, 225), (30, 30, 30), 4)
+
+                cv2.imwrite(img_file, img)
+
+            if not os.path.exists(lbl_file):
+                # Write standard YOLO format lines: <class_id> <x_center> <y_center> <width> <height>
+                labels = [
+                    "0 0.3500 0.5750 0.0750 0.2800\n",  # human
+                    "3 0.3180 0.5480 0.0380 0.0970\n",  # large_backpack
+                    "1 0.7180 0.6520 0.2500 0.2220\n",  # vehicle
+                ]
+                if idx % 2 == 1:
+                    labels.append("2 0.3940 0.5900 0.0240 0.0700\n")  # weapon
+
+                with open(lbl_file, "w", encoding="utf-8") as f:
+                    f.writelines(labels)
+
+            total_generated += 1
+
+    yaml_path = "data/surveillance_sample.yaml"
+    generate_dataset_yaml(
+        output_yaml_path=yaml_path,
+        dataset_root_dir=output_dir,
+        class_names=["human", "vehicle", "weapon", "large_backpack"]
+    )
+
+    return {
+        "status": "ready",
+        "dataset_id": "starter_surveillance",
+        "yaml_path": yaml_path,
+        "output_dir": output_dir,
+        "total_samples": total_generated,
+        "classes": ["human", "vehicle", "weapon", "large_backpack"]
+    }
+
 
 def generate_dataset_yaml(
     output_yaml_path: str,

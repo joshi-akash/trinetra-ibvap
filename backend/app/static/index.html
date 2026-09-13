@@ -261,6 +261,26 @@
       border-color: #059669;
       box-shadow: 0 0 16px rgba(5, 150, 105, 0.35);
     }
+    .night-vision-boost video {
+      filter: contrast(1.4) brightness(1.45) saturate(1.25) drop-shadow(0 0 8px rgba(56, 189, 248, 0.4)) !important;
+    }
+    .nvg-mode video {
+      filter: contrast(1.5) brightness(1.4) sepia(100%) hue-rotate(85deg) saturate(320%) !important;
+    }
+    .motion-trail-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 6;
+    }
+    .motion-trail-path {
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
     .cam-hud {
       position: absolute;
       top: 6px;
@@ -348,7 +368,13 @@
       background: rgba(56, 189, 248, 0.08);
       box-sizing: border-box;
       pointer-events: none;
-      transition: all 0.15s ease-out;
+      transition: left 0.35s cubic-bezier(0.25, 1, 0.5, 1), 
+                  top 0.35s cubic-bezier(0.25, 1, 0.5, 1), 
+                  width 0.35s ease-out, 
+                  height 0.35s ease-out,
+                  border-color 0.25s ease,
+                  background-color 0.25s ease;
+      will-change: left, top, width, height;
     }
     .bounding-box.human { border-color: #10b981; background: rgba(16, 185, 129, 0.08); }
     .bounding-box.vehicle { border-color: #38bdf8; background: rgba(56, 189, 248, 0.08); }
@@ -597,6 +623,25 @@
 
       <!-- TAB 1: Live Sector Feeds -->
       <div id="tab-live-view" class="tab-view active">
+        <!-- Tactical Matrix Operational Controls -->
+        <div style="display:flex; justify-content:space-between; align-items:center; background:#0f192b; padding:8px 14px; border-radius:6px; border:1px solid var(--border-color); margin-bottom:10px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-weight:700; font-size:0.75rem; color:var(--text-muted); letter-spacing:0.5px;">TACTICAL MATRIX:</span>
+            <button id="btn-night-vision" class="btn" style="padding:3px 10px; font-size:0.75rem;" onclick="toggleNightVision()">🌙 Low-Light IR Boost: OFF</button>
+            <button id="btn-nvg-green" class="btn" style="padding:3px 10px; font-size:0.75rem;" onclick="toggleNvgGreen()">🟢 Green NVG: OFF</button>
+            <button id="btn-motion-trails" class="btn btn-primary" style="padding:3px 10px; font-size:0.75rem;" onclick="toggleMotionTrails()">📈 Trajectory Trails: ON</button>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">AI LOAD:</label>
+            <select id="select-ai-rate" class="form-input" style="padding:2px 8px; font-size:0.72rem; width:auto; background:#111c30; border:1px solid #334e7c; color:#38bdf8; border-radius:4px; font-weight:600;" onchange="changeAiRate(this.value)">
+              <option value="1000">🌱 Eco Mode (1000ms / Low CPU)</option>
+              <option value="650" selected>⚡ Balanced (650ms / Optimal)</option>
+              <option value="400">🎯 High Precision (400ms)</option>
+            </select>
+            <span class="pill pill-success" style="font-size:0.72rem;">● SMOOTH DIRECTIONAL TRACKING</span>
+          </div>
+        </div>
+
         <div id="camera-matrix">
           <!-- Dynamically injected active camera feeds -->
         </div>
@@ -635,10 +680,12 @@
             <option value="CAM-04">CAM-04</option>
           </select>
 
-          <input type="text" id="log-search-box" class="text-input" placeholder="Search plate, suspect name, posture..." style="flex:1;" onkeydown="if(event.key==='Enter') loadLogs()">
-          <button class="btn btn-primary" onclick="loadLogs()">Filter</button>
+          <input type="text" id="log-search-box" class="text-input" placeholder="Search plate, suspect, direction (e.g. moving left, north, west), weapon (bandook, knife), or Hindi (kala, andhera)..." style="flex:1;" onkeydown="if(event.key==='Enter') loadLogs()">
+          <button class="btn btn-primary" onclick="loadLogs()">🔍 Search Horizon</button>
           <button class="btn btn-danger" onclick="purgeAllLogsConfirm()" title="Delete all logs from database">🗑️ Purge All Logs</button>
         </div>
+
+        <div id="search-filter-chips" style="display:flex; flex-wrap:wrap; gap:6px; align-items:center; min-height:22px; font-size:0.75rem; padding:0 4px;"></div>
 
         <div class="table-container">
           <table>
@@ -905,9 +952,18 @@
                   <label style="font-size:0.72rem; color:var(--text-muted); display:block; margin-bottom:4px;">Zero-DCE & CLAHE Night Vision</label>
                   <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
                     <span style="font-size:0.75rem; color:#10b981; font-weight:700;">● AUTO-ADAPTIVE</span>
-                    <span style="font-size:0.7rem; color:var(--text-muted);">(Dynamic CLAHE + Zero-DCE on luminance &lt; 60)</span>
+                    <span style="font-size:0.7rem; color:var(--text-muted);">(Dynamic CLAHE + Zero-DCE on luminance &lt; 85)</span>
                   </div>
                 </div>
+              </div>
+
+              <!-- Curated Surveillance Training Datasets Card -->
+              <h3 style="font-size:0.95rem; color:#fff; margin-top:14px;">📦 Curated Surveillance Datasets for Higher Accuracy</h3>
+              <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:8px;">
+                Pre-calibrated sovereign surveillance datasets for weapon detection, low-light stealth postures, and vehicle tracking.
+              </p>
+              <div id="curated-datasets-list" style="display:flex; flex-direction:column; gap:8px;">
+                <!-- Populated dynamically by loadCuratedDatasetsUI() -->
               </div>
             </div>
 
@@ -1219,8 +1275,17 @@
       }
     }
 
+    window.currentActiveTab = 'live-view';
+    window.aiDetectionIntervalMs = 650;
+
+    function changeAiRate(rateMs) {
+      window.aiDetectionIntervalMs = parseInt(rateMs, 10) || 650;
+      console.log(`[TRINETRA] AI detection interval updated to ${window.aiDetectionIntervalMs}ms`);
+    }
+
     // --- 2. Tab Navigation ---
     function showTab(tabId) {
+      window.currentActiveTab = tabId;
       document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-view').forEach(view => view.classList.remove('active'));
       
@@ -1241,7 +1306,104 @@
       }
       if (tabId === 'intel-logs') loadLogs();
       if (tabId === 'camera-setup') loadCameraFleet();
-      if (tabId === 'admin-dashboard') loadAdminDashboardStats();
+      if (tabId === 'admin-dashboard') {
+        loadAdminDashboardStats();
+        loadCuratedDatasetsUI();
+      }
+    }
+
+    // --- 2.1 Tactical Matrix Operators & Dataset Controls ---
+    let nightVisionBoostActive = false;
+    let nvgGreenActive = false;
+    window.showMotionTrails = true;
+
+    function toggleNightVision() {
+      nightVisionBoostActive = !nightVisionBoostActive;
+      const matrix = document.getElementById('camera-matrix');
+      const btn = document.getElementById('btn-night-vision');
+      if (matrix) {
+        matrix.classList.toggle('night-vision-boost', nightVisionBoostActive);
+      }
+      if (btn) {
+        btn.innerText = `🌙 Low-Light IR Boost: ${nightVisionBoostActive ? 'ON' : 'OFF'}`;
+        btn.classList.toggle('btn-primary', nightVisionBoostActive);
+      }
+    }
+
+    function toggleNvgGreen() {
+      nvgGreenActive = !nvgGreenActive;
+      const matrix = document.getElementById('camera-matrix');
+      const btn = document.getElementById('btn-nvg-green');
+      if (matrix) {
+        matrix.classList.toggle('nvg-mode', nvgGreenActive);
+      }
+      if (btn) {
+        btn.innerText = `🟢 Green NVG: ${nvgGreenActive ? 'ON' : 'OFF'}`;
+        btn.classList.toggle('btn-success', nvgGreenActive);
+      }
+    }
+
+    function toggleMotionTrails() {
+      window.showMotionTrails = !window.showMotionTrails;
+      const btn = document.getElementById('btn-motion-trails');
+      if (btn) {
+        btn.innerText = `📈 Trajectory Trails: ${window.showMotionTrails ? 'ON' : 'OFF'}`;
+        btn.classList.toggle('btn-primary', window.showMotionTrails);
+      }
+    }
+
+    async function loadCuratedDatasetsUI() {
+      const container = document.getElementById('curated-datasets-list');
+      if (!container) return;
+      if (!token) await login();
+      try {
+        const res = await fetch('/api/training/curated-datasets', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const datasets = data.datasets || [];
+        let html = '';
+        datasets.forEach(d => {
+          const isBuiltin = d.is_builtin;
+          html += `
+            <div style="background:#070d18; border:1px solid var(--border-color); border-radius:6px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+              <div style="flex:1;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-weight:700; color:#38bdf8; font-size:0.85rem;">${d.name}</span>
+                  <span class="pill ${isBuiltin ? 'pill-success' : 'pill-info'}" style="font-size:0.65rem;">${isBuiltin ? 'Pre-Packaged' : 'Benchmark Recipe'}</span>
+                  <span style="font-size:0.72rem; color:var(--text-muted); font-family:var(--font-mono);">${d.classes.join(', ')}</span>
+                </div>
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-top:3px;">${d.description}</div>
+              </div>
+              <div style="margin-left:12px;">
+                <button class="btn ${isBuiltin ? 'btn-primary' : ''}" style="padding:4px 10px; font-size:0.75rem;" onclick="loadAndSelectPresetDataset('${d.id}')">
+                  ${isBuiltin ? '⚡ 1-Click Load Dataset' : '🌐 View & Load Pack'}
+                </button>
+              </div>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      } catch (e) {
+        console.warn("Curated datasets load error:", e);
+      }
+    }
+
+    async function loadAndSelectPresetDataset(presetId) {
+      if (!token) await login();
+      try {
+        const res = await fetch('/api/training/load-preset-dataset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ preset_id: presetId })
+        });
+        const data = await res.json();
+        alert(`📦 Dataset Loader: ${data.message}\nPath: ${data.dataset?.yaml_path || presetId}`);
+        openTrainingModal();
+      } catch (e) {
+        alert("Failed to load dataset: " + e.message);
+      }
     }
 
     // --- 3. Tactical Audio Siren Synthesizer ---
@@ -1486,21 +1648,31 @@
 
         if (!vid || !layer) return;
 
+        // 1. Power & Resource Guard: Pause AI inference when not on Live Sector tab or window is minimized
+        if (window.currentActiveTab && window.currentActiveTab !== 'live-view') {
+          window.activeDetectionTimers[camId] = setTimeout(detectTick, 1200);
+          return;
+        }
+        if (document.hidden) {
+          window.activeDetectionTimers[camId] = setTimeout(detectTick, 1500);
+          return;
+        }
+
         // If video is paused or hidden, retry after short interval
         if (vid.style.display === 'none' || vid.paused || vid.ended || vid.readyState < 2) {
-          window.activeDetectionTimers[camId] = setTimeout(detectTick, 600);
+          window.activeDetectionTimers[camId] = setTimeout(detectTick, 800);
           return;
         }
 
         if (isProcessing) {
-          window.activeDetectionTimers[camId] = setTimeout(detectTick, 200);
+          window.activeDetectionTimers[camId] = setTimeout(detectTick, 250);
           return;
         }
 
         try {
           isProcessing = true;
           captureCtx.drawImage(vid, 0, 0, 640, 360);
-          const b64 = captureCanvas.toDataURL('image/jpeg', 0.88);
+          const b64 = captureCanvas.toDataURL('image/jpeg', 0.85);
 
           const res = await fetch(`/api/cameras/${encodeURIComponent(camId)}/detect-frame`, {
             method: 'POST',
@@ -1515,8 +1687,9 @@
             // Update global tracked entities counter
             document.getElementById('stat-entities').innerText = entities.length;
 
-            let html = '';
-            entities.forEach(e => {
+            const activeBoxIds = new Set();
+
+            entities.forEach((e, idx) => {
               const b = e.bbox || [0, 0, 0, 0];
               const left = Math.max(0, Math.min(100, (b[0] / 640) * 100));
               const top = Math.max(0, Math.min(100, (b[1] / 360) * 100));
@@ -1530,9 +1703,31 @@
               const isSuspect = attrs.face_name && attrs.face_name !== 'Unidentified';
               const isThreat = isAlert || isSuspect;
 
+              // Directional icon resolution
+              const dir = attrs.direction || '';
+              let dirIcon = '🧭';
+              if (dir.includes('Left') || dir.includes('West')) dirIcon = '⬅️';
+              else if (dir.includes('Right') || dir.includes('East')) dirIcon = '➡️';
+              else if (dir.includes('Advancing') || dir.includes('South')) dirIcon = '⬇️';
+              else if (dir.includes('Retreating') || dir.includes('North')) dirIcon = '⬆️';
+              else if (dir.includes('Stationary') || dir.includes('Loitering')) dirIcon = '⏹️';
+
+              const speedStr = attrs.speed_kmh ? `${attrs.speed_kmh} km/h` : '';
+              const dirBadge = dir ? ` | ${dirIcon} ${dir} ${speedStr ? '(' + speedStr + ')' : ''}` : '';
+
+              // Movement anomaly badges
+              const mFlags = attrs.movement_flags || [];
+              let mBadge = '';
+              if (mFlags.includes('sprinting')) mBadge += `<span style="background:#ef4444; color:#fff; padding:1px 4px; border-radius:2px; font-weight:800; font-size:0.65rem; margin-left:4px;">🚨 SPRINTING</span>`;
+              if (mFlags.includes('loitering')) mBadge += `<span style="background:#f59e0b; color:#000; padding:1px 4px; border-radius:2px; font-weight:800; font-size:0.65rem; margin-left:4px;">⏱️ LOITERING</span>`;
+              if (mFlags.includes('sudden_direction_change')) mBadge += `<span style="background:#b91c1c; color:#fff; padding:1px 4px; border-radius:2px; font-weight:800; font-size:0.65rem; margin-left:4px;">⚠️ SHARP TURN</span>`;
+
+              let cls = '';
+              let nameTag = '';
+              let metaContent = '';
+
               if (e.entity_type === 'human') {
-                const cls = isThreat ? 'threat' : 'human';
-                let nameTag = '';
+                cls = isThreat ? 'threat' : 'human';
                 if (isAlert) {
                   nameTag = `🚨 ALERT: ${(attrs.rule_fired || 'SUSPICIOUS ACTIVITY').toUpperCase()} [${conf}%]`;
                 } else if (isSuspect) {
@@ -1546,40 +1741,75 @@
                 const colorsStr = (attrs.upper_color && attrs.upper_color !== 'unknown') ? `${attrs.upper_color}/${attrs.lower_color || 'dark'}` : 'Visible';
                 const skinStr = attrs.skin_tone ? `${attrs.skin_tone}` : '';
                 const propsStr = (attrs.props && attrs.props.length > 0) ? ` | ⚠️ PROPS: ${attrs.props.join(', ').toUpperCase()}` : '';
-
-                html += `
-                  <div class="bounding-box ${cls}" style="left:${left.toFixed(1)}%; top:${top.toFixed(1)}%; width:${width.toFixed(1)}%; height:${height.toFixed(1)}%;">
-                    <span class="bbox-tag ${cls}">${nameTag}</span>
-                    <div class="bbox-meta">${postureStr} (${heightStr}) ${skinStr ? '| ' + skinStr : ''} ${propsStr} | ${colorsStr}</div>
-                  </div>
-                `;
+                metaContent = `${postureStr} (${heightStr}) ${skinStr ? '| ' + skinStr : ''} ${propsStr} | ${colorsStr}${dirBadge}`;
               } else if (e.entity_type === 'vehicle') {
-                const cls = isAlert ? 'threat' : 'vehicle';
+                cls = isAlert ? 'threat' : 'vehicle';
                 const vType = (attrs.vehicle_type || 'Vehicle').toUpperCase();
                 const vColor = attrs.vehicle_color || 'Vehicle';
                 const plate = attrs.plate_text ? `ANPR: ${attrs.plate_text}` : 'ANPR Scanned';
-                const speed = attrs.speed_kmh ? `${Math.round(attrs.speed_kmh)} km/h` : '35 km/h';
-                const dir = attrs.direction || '';
-                const nameTag = isAlert ? `🚨 ALERT: ${(attrs.rule_fired || 'BREACH').toUpperCase()} [${conf}%]` : `🚗 ${vType} (${vColor}) [${conf}%]`;
-
-                html += `
-                  <div class="bounding-box ${cls}" style="left:${left.toFixed(1)}%; top:${top.toFixed(1)}%; width:${width.toFixed(1)}%; height:${height.toFixed(1)}%;">
-                    <span class="bbox-tag ${cls}">${nameTag}</span>
-                    <div class="bbox-meta">${plate} ${speed ? '| ' + speed : ''} ${dir}</div>
-                  </div>
-                `;
+                nameTag = isAlert ? `🚨 ALERT: ${(attrs.rule_fired || 'BREACH').toUpperCase()} [${conf}%]` : `🚗 ${vType} (${vColor}) [${conf}%]`;
+                metaContent = `${plate} ${speedStr ? '| ' + speedStr : ''}${dirBadge}`;
               } else {
-                const cls = isAlert ? 'threat' : '';
-                const nameTag = isAlert ? `🚨 ALERT: ${(attrs.rule_fired || 'BREACH').toUpperCase()} [${conf}%]` : `🎯 ${e.entity_type.toUpperCase()} [${conf}%]`;
-                html += `
-                  <div class="bounding-box ${cls}" style="left:${left.toFixed(1)}%; top:${top.toFixed(1)}%; width:${width.toFixed(1)}%; height:${height.toFixed(1)}%;">
-                    <span class="bbox-tag ${cls}">${nameTag}</span>
-                  </div>
-                `;
+                cls = isAlert ? 'threat' : '';
+                nameTag = isAlert ? `🚨 ALERT: ${(attrs.rule_fired || 'BREACH').toUpperCase()} [${conf}%]` : `🎯 ${e.entity_type.toUpperCase()} [${conf}%]`;
+                metaContent = dirBadge;
               }
+
+              // Keyed element reuse for smooth CSS gliding between frames
+              const rawTrackId = e.track_id || attrs.trajectory_id;
+              const trackKey = rawTrackId ? String(rawTrackId).replace(/[^a-zA-Z0-9_-]/g, '') : `idx-${idx}`;
+              const boxElemId = `bbox-cam-${camId}-${trackKey}`;
+              activeBoxIds.add(boxElemId);
+
+              let boxElem = document.getElementById(boxElemId);
+              if (!boxElem) {
+                boxElem = document.createElement('div');
+                boxElem.id = boxElemId;
+                layer.appendChild(boxElem);
+              }
+              boxElem.className = `bounding-box ${cls}`;
+              boxElem.style.left = `${left.toFixed(1)}%`;
+              boxElem.style.top = `${top.toFixed(1)}%`;
+              boxElem.style.width = `${width.toFixed(1)}%`;
+              boxElem.style.height = `${height.toFixed(1)}%`;
+              boxElem.innerHTML = `
+                <span class="bbox-tag ${cls}">${nameTag}${mBadge}</span>
+                <div class="bbox-meta">${metaContent}</div>
+              `;
             });
 
-            layer.innerHTML = html;
+            // Remove expired bounding boxes for entities that left the frame
+            layer.querySelectorAll('.bounding-box').forEach(b => {
+              if (!activeBoxIds.has(b.id)) b.remove();
+            });
+
+            // SVG Motion Trajectory Trails Overlay
+            let trailsSvg = document.getElementById(`svg-trails-${camId}`);
+            if (window.showMotionTrails !== false) {
+              let svgPaths = '';
+              entities.forEach(ent => {
+                const traj = ent.attributes?.trajectory || [];
+                if (traj.length >= 2) {
+                  const ptsStr = traj.map(pt => `${((pt[0] / 640) * 100).toFixed(1)},${((pt[1] / 360) * 100).toFixed(1)}`).join(' ');
+                  const isAlert = ent.attributes?.is_alert === true;
+                  const strokeCol = isAlert ? '#ef4444' : '#38bdf8';
+                  svgPaths += `<polyline points="${ptsStr}" stroke="${strokeCol}" stroke-width="2" fill="none" stroke-dasharray="3 3" opacity="0.85" filter="drop-shadow(0 0 3px ${strokeCol})"/>`;
+                  const lastPt = traj[traj.length - 1];
+                  svgPaths += `<circle cx="${((lastPt[0] / 640) * 100).toFixed(1)}" cy="${((lastPt[1] / 360) * 100).toFixed(1)}" r="3" fill="${strokeCol}"/>`;
+                }
+              });
+              if (!trailsSvg) {
+                trailsSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                trailsSvg.id = `svg-trails-${camId}`;
+                trailsSvg.setAttribute("viewBox", "0 0 100 100");
+                trailsSvg.setAttribute("preserveAspectRatio", "none");
+                trailsSvg.setAttribute("class", "motion-trail-svg");
+                layer.insertBefore(trailsSvg, layer.firstChild);
+              }
+              trailsSvg.innerHTML = svgPaths;
+            } else if (trailsSvg) {
+              trailsSvg.innerHTML = '';
+            }
 
             // Automatically refresh alerts panel if any entity triggered an alert
             if (entities.some(ent => ent.attributes && ent.attributes.is_alert)) {
@@ -1590,11 +1820,12 @@
           console.warn("Detection tick error:", err);
         } finally {
           isProcessing = false;
-          window.activeDetectionTimers[camId] = setTimeout(detectTick, 350);
+          const nextDelay = window.aiDetectionIntervalMs || 650;
+          window.activeDetectionTimers[camId] = setTimeout(detectTick, nextDelay);
         }
       }
 
-      window.activeDetectionTimers[camId] = setTimeout(detectTick, 250);
+      window.activeDetectionTimers[camId] = setTimeout(detectTick, 400);
     }
 
     // --- 6. Stream Configuration Modal Handlers ---
@@ -1861,27 +2092,65 @@
       if (!token) await login();
       try {
         const cam = document.getElementById('log-filter-cam').value;
-        const query = (document.getElementById('log-search-box').value || '').toLowerCase();
-        let url = '/api/entities?limit=100';
+        const searchInput = document.getElementById('log-search-box');
+        const query = (searchInput ? searchInput.value : '').trim();
+        const chipsContainer = document.getElementById('search-filter-chips');
 
-        if (currentCategory === 'generic') url += '&is_alert=false';
-        if (currentCategory === 'alert') url += '&is_alert=true';
-        if (currentCategory === 'vehicle') url += '&entity_type=vehicle';
-        if (currentCategory === 'human') url += '&entity_type=human';
-        if (cam) url += `&camera_id=${cam}`;
-
-        const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
-        let logs = await res.json();
+        let logs = [];
 
         if (query) {
-          logs = logs.filter(l => 
-            (l.plate_text && l.plate_text.toLowerCase().includes(query)) ||
-            (l.face_name && l.face_name.toLowerCase().includes(query)) ||
-            (l.vehicle_type && l.vehicle_type.toLowerCase().includes(query)) ||
-            (l.posture && l.posture.toLowerCase().includes(query)) ||
-            (l.upper_color && l.upper_color.toLowerCase().includes(query)) ||
-            (l.rule_fired && l.rule_fired.toLowerCase().includes(query))
-          );
+          const payload = {
+            query: query,
+            limit: 250
+          };
+          if (cam) payload.camera_id = cam;
+          if (currentCategory === 'generic') payload.alert_only = false;
+          if (currentCategory === 'alert') payload.alert_only = true;
+          if (currentCategory === 'vehicle') payload.entity_type = 'vehicle';
+          if (currentCategory === 'human') payload.entity_type = 'human';
+
+          const res = await fetch('/api/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify(payload)
+          });
+          if (res.ok) {
+            const data = await res.json();
+            logs = data.results || [];
+            if (chipsContainer) {
+              const resObj = data.parsed_filters?.resolved || {};
+              const unres = data.parsed_filters?.unresolved || [];
+              let chipsHtml = `<span style="color:var(--text-muted); font-weight:700;">Active Horizon:</span>`;
+              for (const [k, v] of Object.entries(resObj)) {
+                chipsHtml += `<span class="pill pill-info" style="font-size:0.7rem;">${k}: ${v}</span>`;
+              }
+              if (unres.length > 0) {
+                chipsHtml += `<span class="pill" style="font-size:0.7rem; background:#1e293b; color:#94a3b8;">matches: "${unres.join(', ')}"</span>`;
+              }
+              chipsHtml += `<span style="color:#10b981; margin-left:auto; font-weight:700;">${data.total_count} records indexed</span>`;
+              chipsContainer.innerHTML = chipsHtml;
+            }
+          } else {
+            let url = '/api/entities?limit=100';
+            if (currentCategory === 'generic') url += '&is_alert=false';
+            if (currentCategory === 'alert') url += '&is_alert=true';
+            if (currentCategory === 'vehicle') url += '&entity_type=vehicle';
+            if (currentCategory === 'human') url += '&entity_type=human';
+            if (cam) url += `&camera_id=${cam}`;
+            const resFallback = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+            logs = await resFallback.json();
+          }
+        } else {
+          if (chipsContainer) chipsContainer.innerHTML = '';
+          let url = '/api/entities?limit=100';
+          if (currentCategory === 'generic') url += '&is_alert=false';
+          if (currentCategory === 'alert') url += '&is_alert=true';
+          if (currentCategory === 'vehicle') url += '&entity_type=vehicle';
+          if (currentCategory === 'human') url += '&entity_type=human';
+          if (cam) url += `&camera_id=${cam}`;
+
+          const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+          logs = await res.json();
         }
 
         const tbody = document.getElementById('logs-table-body');
@@ -1898,7 +2167,8 @@
             const vCol = l.upper_color || 'Vehicle';
             const vPlate = l.plate_text ? `<b>${l.plate_text}</b>` : 'Scanned';
             const vSpeed = l.speed_kmh ? `${l.speed_kmh} km/h` : '';
-            vehInfo = `🚗 ${vCol} ${vType} | ${vPlate} ${vSpeed}`;
+            const vDir = l.direction ? `🧭 ${l.direction}` : '';
+            vehInfo = `🚗 ${vCol} ${vType} | ${vPlate} ${vSpeed ? '| ' + vSpeed : ''} ${vDir ? '| ' + vDir : ''}`;
           }
 
           let bioInfo = '—';
@@ -1907,7 +2177,9 @@
             const height = l.height_cm ? `${Math.round(l.height_cm)} cm` : '174 cm';
             const skin = l.skin_tone ? ` | ${l.skin_tone}` : '';
             const clothing = (l.upper_color && l.upper_color !== 'unknown') ? `${l.upper_color}/${l.lower_color || 'dark'}` : 'Tactical';
-            bioInfo = `👤 ${posture} (${height}${skin}) | Clothing: ${clothing}`;
+            const dir = l.direction ? `🧭 ${l.direction}` : '';
+            const speed = l.speed_kmh ? `⚡ ${l.speed_kmh} km/h` : '';
+            bioInfo = `👤 ${posture} (${height}${skin}) | Clothing: ${clothing} ${dir ? '| ' + dir : ''} ${speed ? '| ' + speed : ''}`;
           }
 
           let faceInfo = '<span style="color:var(--text-muted);">Unidentified</span>';

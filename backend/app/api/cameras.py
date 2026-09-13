@@ -400,6 +400,12 @@ def detect_camera_frame(
         # Suspicious body posture check (crouching, prone/crawling, climbing)
         has_sus_posture = posture in ("crouching", "prone", "crawling", "climbing", "sprinting")
 
+        # Movement anomaly check (sprinting, loitering, sudden direction reversal)
+        movement_flags = attrs.get("movement_flags", [])
+        if not isinstance(movement_flags, list):
+            movement_flags = []
+        has_movement_anomaly = bool(movement_flags)
+
         # Suspect face match check
         face_name = attrs.get("face_name")
         is_suspect = bool(face_name and face_name != "Unidentified")
@@ -430,6 +436,16 @@ def detect_camera_frame(
             alert_type = "behavior"
             rule_fired = "threat_prop: large_backpack (suspicious big bag / baggage)"
             threat_score = 0.85
+        elif has_movement_anomaly and is_breach:
+            is_alert = True
+            alert_type = "correlated"
+            rule_fired = f"multi_modal_corroboration: breach & {movement_flags[0]}"
+            threat_score = 0.93
+        elif has_movement_anomaly:
+            is_alert = True
+            alert_type = "behavior"
+            rule_fired = f"suspicious_movement: {', '.join(movement_flags)}"
+            threat_score = 0.86
         elif has_sus_posture and is_breach:
             is_alert = True
             alert_type = "correlated"
@@ -451,13 +467,60 @@ def detect_camera_frame(
             rule_fired = f"suspect_face_match: {face_name}"
             threat_score = 0.92
 
-        # 5. Database Persistence with sensible rate throttling
-        throttle_key = f"{camera_id}_{tid_val or 'notrk'}_{is_alert}"
-        last_logged = _ENTITY_LOG_THROTTLE.get(throttle_key, 0.0)
-        throttle_interval = 3.5 if is_alert else 2.5
+        # 5. Event-Driven Intelligent Database Persistence & Throttling
+        # Rules:
+        # a) First sighting of a tracked entity -> Log once immediately.
+        # b) New / Escalated Alert -> Log immediately with thumbnail.
+        # c) Repeated Alert (same track + same rule) -> Cooldown for at least 45 seconds.
+        # d) Forensic Milestone -> Log if license plate OCR or suspect face newly identified.
+        # e) Passive heartbeat -> At most once every 60 seconds.
+        # f) Untracked entity -> Cooldown 30s (passive) or 15s (alert).
+        track_state_key = f"{camera_id}_{tid_val}" if tid_val is not None else f"{camera_id}_untracked_{is_alert}"
+        track_state = _ENTITY_LOG_THROTTLE.get(track_state_key)
 
-        if (now_ts - last_logged) >= throttle_interval:
-            _ENTITY_LOG_THROTTLE[throttle_key] = now_ts
+        should_log = False
+        if track_state is None:
+            should_log = True
+            _ENTITY_LOG_THROTTLE[track_state_key] = {
+                "first_seen": now_ts,
+                "last_logged": now_ts,
+                "last_rule": rule_fired,
+                "has_alerted": is_alert,
+                "plate": attrs.get("plate_text"),
+                "face": attrs.get("face_name")
+            }
+        else:
+            time_since_log = now_ts - track_state["last_logged"]
+            if is_alert:
+                # Log immediately if rule escalated/changed (e.g. loitering -> weapon or breach)
+                if rule_fired != track_state.get("last_rule"):
+                    should_log = True
+                    track_state["last_rule"] = rule_fired
+                    track_state["last_logged"] = now_ts
+                    track_state["has_alerted"] = True
+                elif time_since_log >= 45.0:
+                    should_log = True
+                    track_state["last_logged"] = now_ts
+            else:
+                # Passive entity: check for newly identified license plate or suspect face
+                new_plate = bool(attrs.get("plate_text") and attrs.get("plate_text") != track_state.get("plate"))
+                new_face = bool(attrs.get("face_name") and attrs.get("face_name") != "Unidentified" and attrs.get("face_name") != track_state.get("face"))
+                if new_plate or new_face:
+                    should_log = True
+                    track_state["plate"] = attrs.get("plate_text")
+                    track_state["face"] = attrs.get("face_name")
+                    track_state["last_logged"] = now_ts
+                elif time_since_log >= 60.0:
+                    should_log = True
+                    track_state["last_logged"] = now_ts
+
+        # Cleanup old throttle state if cache grows large
+        if len(_ENTITY_LOG_THROTTLE) > 200:
+            stale = [k for k, v in _ENTITY_LOG_THROTTLE.items() if (now_ts - v.get("last_logged", 0)) > 300.0]
+            for k in stale:
+                _ENTITY_LOG_THROTTLE.pop(k, None)
+
+        if should_log:
             ent_id = str(uuid.uuid4())
             thumb_rel = None
 
@@ -503,7 +566,7 @@ def detect_camera_frame(
                 retention_tier="protected" if is_alert else "passive",
                 rule_fired=rule_fired,
                 acknowledged=False,
-                is_low_light=False,
+                is_low_light=bool(attrs.get("is_low_light", False)),
                 posture=posture
             )
             try:
