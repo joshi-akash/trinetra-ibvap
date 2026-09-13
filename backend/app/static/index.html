@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TRINETRA (IBVAP) — Tactical Border Command & Analytics Dashboard</title>
+  <title>TRINETRA (IBVAP) — Tactical Border Command & Video Analytics Platform</title>
   <style>
     :root {
       --bg-dark: #070a10;
@@ -180,10 +180,10 @@
       flex: 1;
     }
     .cam-tile {
-      background: #000;
+      background: #020509;
       border: 1px solid var(--border-color);
       border-radius: 8px;
-      height: 290px;
+      height: 310px;
       position: relative;
       overflow: hidden;
       display: flex;
@@ -203,31 +203,29 @@
       top: 8px; left: 10px; right: 10px;
       display: flex; justify-content: space-between; align-items: center;
       z-index: 10;
-      background: rgba(0,0,0,0.65);
-      padding: 4px 8px;
+      background: rgba(4, 9, 18, 0.75);
+      padding: 5px 10px;
       border-radius: 4px;
       backdrop-filter: blur(4px);
+      border: 1px solid rgba(255,255,255,0.08);
     }
     .cam-id { font-weight: 800; font-size: 0.85rem; letter-spacing: 0.5px; font-family: var(--font-mono); }
     .cam-metrics { font-size: 0.72rem; display: flex; align-items: center; gap: 8px; }
     .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
 
-    .cam-video {
+    .cam-canvas {
       position: absolute;
       top: 0; left: 0;
       width: 100%; height: 100%;
       object-fit: cover;
       z-index: 1;
     }
-    .cam-radar-placeholder {
+    .cam-video {
       position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      background: radial-gradient(circle at center, #0e1a2f 0%, #05080e 100%);
-      z-index: 1;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      z-index: 2;
     }
 
     /* Tactical Bounding Box HUDs */
@@ -241,7 +239,8 @@
       justify-content: space-between;
       padding: 4px;
       pointer-events: none;
-      z-index: 5;
+      z-index: 6;
+      transition: all 0.15s ease-out;
     }
     .bounding-box.threat {
       border-color: var(--accent-red);
@@ -254,7 +253,7 @@
     }
     .bbox-tag {
       font-size: 0.65rem;
-      background: rgba(0, 0, 0, 0.85);
+      background: rgba(0, 0, 0, 0.88);
       color: #22c55e;
       padding: 2px 6px;
       border-radius: 3px;
@@ -263,11 +262,11 @@
       width: fit-content;
       white-space: nowrap;
     }
-    .bbox-tag.threat { color: #f87171; background: rgba(127, 29, 29, 0.9); }
-    .bbox-tag.vehicle { color: #38bdf8; background: rgba(12, 74, 110, 0.9); }
+    .bbox-tag.threat { color: #f87171; background: rgba(127, 29, 29, 0.92); }
+    .bbox-tag.vehicle { color: #38bdf8; background: rgba(12, 74, 110, 0.92); }
     .bbox-meta {
       font-size: 0.62rem;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.88);
       color: #e2e8f0;
       padding: 2px 5px;
       border-radius: 2px;
@@ -367,7 +366,7 @@
       border: 2px solid var(--accent-red);
       box-shadow: 0 0 35px rgba(239, 68, 68, 0.5);
       border-radius: 10px;
-      width: 580px;
+      width: 600px;
       max-width: 95vw;
       padding: 24px;
       display: flex;
@@ -568,16 +567,16 @@
                 <input type="number" step="0.01" id="setup-cam-trust" class="text-input" value="0.98" style="width:100%;">
               </div>
               <div style="grid-column: span 2;">
-                <label style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:4px;">Live CCTV Stream URL (HTTP/HTTPS, RTSP, HLS .m3u8, or Video Link)</label>
-                <input type="text" id="setup-cam-stream" class="text-input" placeholder="e.g. /footage/cctv_sample.mp4 or https://domain.com/live.mp4" style="width:100%;">
+                <label style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:4px;">Live CCTV Stream URL (HTTP/HTTPS, RTSP, HLS, or Video Link)</label>
+                <input type="text" id="setup-cam-stream" class="text-input" placeholder="e.g. https://domain.com/cctv_live.mp4 or /footage/cctv_sample.mp4" style="width:100%;">
               </div>
             </div>
 
             <!-- Footage File Upload Section -->
             <div style="margin-top:14px; padding:12px; border-radius:6px; border:1px dashed var(--accent-cyan); background:rgba(6,182,212,0.06); display:flex; justify-content:space-between; align-items:center;">
               <div>
-                <span style="font-size:0.85rem; font-weight:700; color:var(--text-main);">Upload Custom CCTV Footage File</span>
-                <p style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Attach a local video clip (.mp4, .mkv, .avi) to play as live CCTV footage</p>
+                <span style="font-size:0.85rem; font-weight:700; color:var(--text-main);">Upload Custom CCTV Footage Video</span>
+                <p style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Attach a local video file (.mp4, .mkv, .avi) to stream as live CCTV footage</p>
               </div>
               <div>
                 <input type="file" id="footage-file-picker" accept="video/*" style="display:none;" onchange="uploadFootageFile(event)">
@@ -598,6 +597,54 @@
       </div>
 
     </main>
+  </div>
+
+  <!-- FEED OPTIONS & STREAM MODAL -->
+  <div id="stream-modal" class="modal-overlay">
+    <div class="modal-box" style="border-color:var(--accent-cyan); width:560px;">
+      <div class="modal-header">
+        <div class="modal-title" style="color:var(--accent-cyan);">🎥 CONFIGURE LIVE CCTV FEED SOURCE</div>
+        <button onclick="closeStreamModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:12px; font-size:0.85rem;">
+        <div>
+          <label style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:4px;">Target Camera</label>
+          <input type="text" id="stream-modal-cam-id" class="text-input" readonly style="width:100%; opacity:0.8; font-weight:700;">
+        </div>
+        <div>
+          <label style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:4px;">Custom Online CCTV Stream URL (HTTP/HTTPS, RTSP, HLS)</label>
+          <input type="text" id="stream-modal-url" class="text-input" placeholder="e.g. https://domain.com/cctv_live.mp4" style="width:100%;">
+        </div>
+        <div>
+          <label style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:6px;">Or Quick-Select Tactical Presets</label>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <button class="btn" style="justify-content:flex-start;" onclick="setStreamPreset('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4')">
+              🛣️ Highway ANPR & High-Speed Corridor Feed
+            </button>
+            <button class="btn" style="justify-content:flex-start;" onclick="setStreamPreset('/footage/cctv_sample.mp4')">
+              🛡️ Sector Alpha Border Outpost Local CCTV (Car & Intruder)
+            </button>
+            <button class="btn" style="justify-content:flex-start;" onclick="setStreamPreset('')">
+              📡 Tactical Canvas Real-Time Surveillance Simulator
+            </button>
+          </div>
+        </div>
+        <div style="margin-top:6px; padding:10px; border-radius:6px; border:1px dashed var(--accent-cyan); background:rgba(6,182,212,0.06); display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <span style="font-size:0.8rem; font-weight:700;">Upload Local Video File</span>
+            <p style="font-size:0.7rem; color:var(--text-muted);">Pick any MP4/MKV video from your PC</p>
+          </div>
+          <div>
+            <input type="file" id="modal-footage-picker" accept="video/*" style="display:none;" onchange="uploadModalFootage(event)">
+            <button class="btn" type="button" onclick="document.getElementById('modal-footage-picker').click()">Browse & Upload</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeStreamModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveStreamModal()">Apply & Save Feed</button>
+      </div>
+    </div>
   </div>
 
   <!-- URGENT SUSPICIOUS MOVEMENT POP-UP MODAL -->
@@ -625,6 +672,8 @@
     let activeAlertsCache = [];
     let currentPolygonVertices = [];
     let latestBreachCameraId = "CAM-01";
+    let activeStreamModalCamId = "";
+    let animationFrameId = null;
 
     // --- 1. Authentication ---
     async function login() {
@@ -708,7 +757,153 @@
       }
     }
 
-    // --- 4. Live Camera Matrix with Video Feeds & HUDs ---
+    // --- 4. Tactical Canvas Stream Renderer for Real-Time CCTV Animation ---
+    let simTargets = {
+      car: { x: -80, y: 220, speed: 2.2, dir: "North-East", plate: "DL-01-AB-1234", kmh: 42.5 },
+      suspect: { x: 260, y: 140, base_x: 260, t: 0, posture: "Crouching", height: 174.5, skin: "Wheatish" }
+    };
+
+    function startTacticalCanvasLoop() {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+      function renderFrame() {
+        const canvases = document.querySelectorAll('.cam-canvas');
+        if (canvases.length === 0) {
+          animationFrameId = requestAnimationFrame(renderFrame);
+          return;
+        }
+
+        // Advance simulation targets
+        simTargets.car.x += simTargets.car.speed;
+        if (simTargets.car.x > 680) simTargets.car.x = -100;
+
+        simTargets.suspect.t += 0.04;
+        simTargets.suspect.x = simTargets.suspect.base_x + Math.sin(simTargets.suspect.t) * 35;
+        simTargets.suspect.y = 145 + Math.sin(simTargets.suspect.t * 0.7) * 15;
+
+        canvases.forEach(canvas => {
+          const ctx = canvas.getContext('2d');
+          const w = canvas.width;
+          const h = canvas.height;
+          const camId = canvas.getAttribute('data-cam-id') || 'CAM-01';
+
+          // 1. Sky & Ground
+          ctx.fillStyle = '#0a101d';
+          ctx.fillRect(0, 0, w, 110);
+          ctx.fillStyle = '#111a28';
+          ctx.fillRect(0, 110, w, h - 110);
+
+          // 2. Road & Perspective Grid
+          ctx.fillStyle = '#182438';
+          ctx.beginPath();
+          ctx.moveTo(0, 240);
+          ctx.lineTo(w, 190);
+          ctx.lineTo(w, 270);
+          ctx.lineTo(0, 320);
+          ctx.closePath();
+          ctx.fill();
+
+          // Road Dash
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+          ctx.setLineDash([12, 10]);
+          ctx.beginPath();
+          ctx.moveTo(0, 280);
+          ctx.lineTo(w, 230);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // 3. Border Perimeter Wire Fence
+          ctx.strokeStyle = '#2b3f5c';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(0, 150); ctx.lineTo(w, 150);
+          ctx.stroke();
+          for (let fx = 0; fx < w; fx += 25) {
+            ctx.beginPath();
+            ctx.moveTo(fx, 120); ctx.lineTo(fx, 175);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(fx, 120); ctx.lineTo(fx + 20, 175);
+            ctx.stroke();
+          }
+
+          // 4. Tactical Radar Scan Wave
+          const sweepX = (Date.now() / 15) % (w + 100) - 50;
+          const grad = ctx.createLinearGradient(sweepX - 60, 0, sweepX, 0);
+          grad.addColorStop(0, 'rgba(6, 182, 212, 0)');
+          grad.addColorStop(1, 'rgba(6, 182, 212, 0.12)');
+          ctx.fillStyle = grad;
+          ctx.fillRect(sweepX - 60, 0, 60, h);
+
+          // 5. Draw Simulated Target 1: Vehicle (Car)
+          const vx = simTargets.car.x;
+          const vy = simTargets.car.y;
+          // Car Body
+          ctx.fillStyle = '#e2e8f0';
+          ctx.fillRect(vx, vy, 85, 30);
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillRect(vx + 20, vy - 18, 48, 18);
+          // Wheels
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath(); ctx.arc(vx + 18, vy + 30, 7, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(vx + 66, vy + 30, 7, 0, Math.PI * 2); ctx.fill();
+          // Number plate
+          ctx.fillStyle = '#f8fafc';
+          ctx.fillRect(vx + 65, vy + 8, 18, 9);
+          ctx.fillStyle = '#000';
+          ctx.font = '7px monospace';
+          ctx.fillText('DL01', vx + 66, vy + 15);
+
+          // 6. Draw Simulated Target 2: Person (Crouching Suspect)
+          const px = simTargets.suspect.x;
+          const py = simTargets.suspect.y;
+          // Torso (dark tactical clothing)
+          ctx.fillStyle = '#1e293b';
+          ctx.beginPath();
+          ctx.ellipse(px, py + 8, 12, 16, 0, 0, Math.PI * 2);
+          ctx.fill();
+          // Head (Wheatish skin tone)
+          ctx.fillStyle = '#d4a373';
+          ctx.beginPath();
+          ctx.arc(px, py - 10, 6, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 7. Tactical Timecode & Outpost Watermark
+          ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
+          ctx.font = '10px monospace';
+          ctx.fillText(`REC ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC`, 12, h - 36);
+          ctx.fillText(`${camId} | 30 FPS | LAT: 29.9457 LON: 78.1642`, 12, h - 22);
+
+          // Update Dynamic Bounding Boxes in DOM for CAM-01
+          if (camId === 'CAM-01') {
+            const bboxVeh = document.getElementById('bbox-veh-CAM-01');
+            const bboxSuspect = document.getElementById('bbox-CAM-01');
+            if (bboxVeh && bboxSuspect) {
+              const scaleX = canvas.clientWidth / w;
+              const scaleY = canvas.clientHeight / h;
+
+              // Position vehicle bounding box
+              bboxVeh.style.left = `${Math.max(5, vx - 5) * scaleX}px`;
+              bboxVeh.style.top = `${(vy - 24) * scaleY}px`;
+              bboxVeh.style.width = `${95 * scaleX}px`;
+              bboxVeh.style.height = `${64 * scaleY}px`;
+
+              // Position suspect bounding box
+              bboxSuspect.style.left = `${(px - 18) * scaleX}px`;
+              bboxSuspect.style.top = `${(py - 20) * scaleY}px`;
+              bboxSuspect.style.width = `${42 * scaleX}px`;
+              bboxSuspect.style.height = `${52 * scaleY}px`;
+            }
+          }
+        });
+
+        animationFrameId = requestAnimationFrame(renderFrame);
+      }
+
+      animationFrameId = requestAnimationFrame(renderFrame);
+    }
+
+    // --- 5. Live Camera Matrix Loader ---
     async function loadCameraMatrix() {
       if (!token) await login();
       try {
@@ -726,65 +921,112 @@
                 <span class="cam-id">${c.camera_id}</span>
                 <span class="cam-metrics">
                   <span class="live-dot"></span> 
-                  ${hasStream ? 'LIVE CCTV FEED' : 'RADAR SIMULATION'} | ${Math.round(c.trust_score * 100)}% TRUST
+                  ${hasStream ? 'LIVE CCTV FEED' : 'TACTICAL SURVEILLANCE SCAN'} | ${Math.round(c.trust_score * 100)}% TRUST
                 </span>
               </div>
 
+              <!-- High-Performance Canvas Surveillance Simulator Layer -->
+              <canvas class="cam-canvas" id="canvas-cam-${c.camera_id}" data-cam-id="${c.camera_id}" width="640" height="360"></canvas>
+
+              <!-- Optional HTML5 Video Overlay for Live Online Video Streams -->
               ${hasStream ? `
-                <video class="cam-video" src="${c.stream_url}" autoplay loop muted playsinline onerror="this.style.display='none'; document.getElementById('fallback-${c.camera_id}').style.display='flex';"></video>
+                <video class="cam-video" id="video-cam-${c.camera_id}" src="${c.stream_url}" autoplay loop muted playsinline onerror="this.style.display='none';"></video>
               ` : ''}
 
-              <div class="cam-radar-placeholder" id="fallback-${c.camera_id}" style="${hasStream ? 'display:none;' : ''}">
-                <span style="font-size:2.8rem; display:block; margin-bottom:6px;">📹</span>
-                <p style="font-weight:700; letter-spacing:0.5px; font-size:0.85rem;">TACTICAL PERIMETER FEED</p>
-                <p style="font-size:0.75rem; color:var(--accent-cyan); margin-top:4px;">Lat: ${c.location ? c.location.lat : '29.9457'} | Lon: ${c.location ? c.location.lon : '78.1642'}</p>
-              </div>
-
-              <!-- Stream Link Footer Overlay -->
-              <div style="position:absolute; bottom:6px; left:10px; right:10px; display:flex; justify-content:space-between; align-items:center; z-index:8; font-size:0.7rem; background:rgba(0,0,0,0.7); padding:3px 8px; border-radius:4px; font-family:var(--font-mono);">
-                <span style="color:var(--accent-cyan); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70%;">
-                  ${hasStream ? `🎥 ${c.stream_url}` : '📡 Radar Grid'}
+              <!-- Bottom HUD Overlay -->
+              <div style="position:absolute; bottom:6px; left:10px; right:10px; display:flex; justify-content:space-between; align-items:center; z-index:8; font-size:0.7rem; background:rgba(4,9,18,0.85); padding:4px 10px; border-radius:4px; font-family:var(--font-mono); border:1px solid rgba(255,255,255,0.06);">
+                <span style="color:var(--accent-cyan); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:65%;">
+                  ${hasStream ? `🎥 Source: ${c.stream_url}` : '📡 Tactical Outpost Scan'}
                 </span>
-                <button onclick="promptChangeStream('${c.camera_id}')" style="background:none; border:none; color:#38bdf8; text-decoration:underline; cursor:pointer; font-size:0.7rem;">Change Link</button>
+                <div style="display:flex; gap:6px;">
+                  <button onclick="openStreamModal('${c.camera_id}', '${c.stream_url || ''}')" style="background:none; border:none; color:#38bdf8; text-decoration:underline; cursor:pointer; font-size:0.72rem; font-weight:700;">
+                    ⚙️ Feed Options
+                  </button>
+                </div>
               </div>
 
-              <!-- Live AI Bounding Box Overlays -->
-              <div class="bounding-box threat" id="bbox-${c.camera_id}" style="top: 28%; left: 42%; width: 22%; height: 44%; display:${c.camera_id === 'CAM-01' ? 'flex' : 'none'};">
+              <!-- Real-Time AI Telemetry Bounding Boxes -->
+              <div class="bounding-box threat" id="bbox-${c.camera_id}" style="display:${c.camera_id === 'CAM-01' ? 'flex' : 'none'};">
                 <span class="bbox-tag threat">🔴 SUSPECT: Akash (SUSP-001) [94%]</span>
                 <div class="bbox-meta">Crouching (174 cm) | Wheatish | Black/Navy</div>
               </div>
 
-              <div class="bounding-box vehicle" id="bbox-veh-${c.camera_id}" style="top: 52%; left: 12%; width: 26%; height: 38%; display:${c.camera_id === 'CAM-01' ? 'flex' : 'none'};">
+              <div class="bounding-box vehicle" id="bbox-veh-${c.camera_id}" style="display:${c.camera_id === 'CAM-01' ? 'flex' : 'none'};">
                 <span class="bbox-tag vehicle">🚗 Car (White) [91%]</span>
                 <div class="bbox-meta">DL-01-AB-1234 | 42.5 km/h NE</div>
               </div>
             </div>
           `;
         });
+
+        startTacticalCanvasLoop();
       } catch (e) {
-        console.error(e);
+        console.error("Camera matrix load error:", e);
       }
     }
 
-    async function promptChangeStream(camId) {
-      const url = prompt(`Enter new live CCTV stream URL or video link for ${camId}:`, "/footage/cctv_sample.mp4");
-      if (url === null) return;
+    // --- 6. Stream Configuration Modal Handlers ---
+    function openStreamModal(camId, currentUrl) {
+      activeStreamModalCamId = camId;
+      document.getElementById('stream-modal-cam-id').value = camId;
+      document.getElementById('stream-modal-url').value = currentUrl || "";
+      document.getElementById('stream-modal').style.display = 'flex';
+    }
+
+    function closeStreamModal() {
+      document.getElementById('stream-modal').style.display = 'none';
+    }
+
+    function setStreamPreset(presetUrl) {
+      document.getElementById('stream-modal-url').value = presetUrl;
+    }
+
+    async function saveStreamModal() {
+      const url = document.getElementById('stream-modal-url').value.trim();
       if (!token) await login();
-      const res = await fetch(`/api/cameras/${camId}/stream`, {
+      const res = await fetch(`/api/cameras/${activeStreamModalCamId}/stream`, {
         method: 'PUT',
         headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
         body: JSON.stringify({ stream_url: url })
       });
       if (res.ok) {
-        alert(`✅ Stream link updated for ${camId}`);
+        alert(`✅ Feed updated for ${activeStreamModalCamId}`);
+        closeStreamModal();
         loadCameraMatrix();
         loadCameraFleet();
       } else {
-        alert("Failed to update stream URL");
+        alert("❌ Failed to update stream URL");
       }
     }
 
-    // --- 5. Active Alert Feed ---
+    async function uploadModalFootage(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (!token) await login();
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch(`/api/cameras/${activeStreamModalCamId}/upload-footage`, {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token },
+          body: formData
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          alert(`✅ ${data.message}`);
+          document.getElementById('stream-modal-url').value = `/footage/${file.name}`;
+        } else {
+          alert("❌ Failed to upload footage file.");
+        }
+      } catch (e) {
+        alert("Upload error: " + e.message);
+      }
+    }
+
+    // --- 7. Active Threat Alerts ---
     async function loadAlerts() {
       if (!token) await login();
       try {
@@ -854,7 +1096,7 @@
       alert(`✅ HQ Export Archive Created!\nExport ID: ${data.export_id}\nSHA-256 Hash: ${data.payload_hash.substring(0, 32)}...\nDownload URL: ${data.download_url}`);
     }
 
-    // --- 6. Rich Intelligence Logs (Face, Vehicle, Biometrics) ---
+    // --- 8. Rich Intelligence Logs (Face, Vehicle, Biometrics) ---
     function setLogCategory(cat) {
       currentCategory = cat;
       document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
@@ -963,7 +1205,7 @@
       }
     }
 
-    // --- 7. Geo-Fence Canvas Studio ---
+    // --- 9. Geo-Fence Canvas Studio ---
     let canvas, ctx;
     function initCanvas() {
       canvas = document.getElementById('geofence-canvas');
@@ -1066,7 +1308,7 @@
       alert(`✅ Geo-fence polygon updated and deployed for ${camId}!`);
     }
 
-    // --- 8. Camera Fleet & Management ---
+    // --- 10. Camera Fleet Management ---
     async function loadCameraFleet() {
       if (!token) await login();
       const res = await fetch('/api/cameras', { headers: { 'Authorization': 'Bearer ' + token } });
@@ -1088,7 +1330,7 @@
               <p style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Trust: ${Math.round(c.trust_score * 100)}% | Geo-Fence: ${c.geo_fence_polygon ? c.geo_fence_polygon.length + ' vertices' : 'None'}</p>
             </div>
             <div style="display:flex; gap:6px;">
-              <button class="btn" style="font-size:0.75rem;" onclick="promptChangeStream('${c.camera_id}')">Set Stream Link</button>
+              <button class="btn" style="font-size:0.75rem;" onclick="openStreamModal('${c.camera_id}', '${c.stream_url || ''}')">Set Feed</button>
               <button class="btn" style="font-size:0.75rem;" onclick="configureGeofence('${c.camera_id}')">Set Geo-Fence</button>
               <button class="btn btn-danger" style="font-size:0.75rem;" onclick="deleteCamera('${c.camera_id}')">Remove</button>
             </div>
@@ -1128,7 +1370,7 @@
       loadCameraMatrix();
     }
 
-    // --- FIX: Camera Removal Feature ---
+    // --- FIX: Robust Camera Removal Feature ---
     async function deleteCamera(camId) {
       if (!confirm(`Are you sure you want to completely remove camera ${camId} from the registry?`)) return;
       if (!token) await login();
@@ -1155,7 +1397,7 @@
       await loadCameraMatrix();
     }
 
-    // --- Footage Upload Handler ---
+    // --- Footage Upload Handler in Camera Setup ---
     async function uploadFootageFile(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -1186,7 +1428,7 @@
       }
     }
 
-    // --- 9. Suspicious Movement Threat Modal with Rich Biometrics ---
+    // --- 11. Suspicious Movement Threat Modal with Rich Biometrics ---
     function showThreatModal(alertData) {
       latestBreachCameraId = alertData.camera_id || "CAM-01";
       playTacticalSiren();
@@ -1198,31 +1440,31 @@
       if (isVeh) {
         threatBreakdown = `
           <div>
-            <span style="color:var(--text-muted);">Vehicle Type:</span>
-            <span style="font-weight:700; color:#38bdf8;">🚗 ${alertData.vehicle_type || 'Car (White)'}</span>
+            <span style="color:var(--text-muted);">Vehicle Type & Color:</span>
+            <span style="font-weight:700; color:#38bdf8;">🚗 ${alertData.vehicle_type || 'Car'} (${alertData.upper_color || 'White'})</span>
           </div>
           <div>
             <span style="color:var(--text-muted);">License Plate:</span>
-            <span style="font-weight:700; color:#fff; font-family:var(--font-mono);">DL-01-AB-1234 (Verified)</span>
+            <span style="font-weight:700; color:#fff; font-family:var(--font-mono);">${alertData.plate_text || 'DL-01-AB-1234'} (Verified ANPR)</span>
           </div>
           <div>
-            <span style="color:var(--text-muted);">Movement & Speed:</span>
-            <span style="color:#fbbf24; font-weight:700;">42.5 km/h Heading North-East</span>
+            <span style="color:var(--text-muted);">Movement & Velocity:</span>
+            <span style="color:#fbbf24; font-weight:700;">${alertData.speed_kmh || 42.5} km/h Heading ${alertData.direction || 'North-East'}</span>
           </div>
         `;
       } else {
         threatBreakdown = `
           <div>
             <span style="color:var(--text-muted);">Face Recognition Match:</span>
-            <span style="font-weight:800; color:#f87171;">🔴 SUSPECT: Akash (SUSP-001) [94% Match]</span>
+            <span style="font-weight:800; color:#f87171;">🔴 SUSPECT: ${alertData.face_name || 'Akash (SUSP-001)'} [94% Match]</span>
           </div>
           <div>
-            <span style="color:var(--text-muted);">Body Posture & Height:</span>
-            <span style="font-weight:700; color:#fff;">Crouching Posture | Estimated Height: 174.5 cm</span>
+            <span style="color:var(--text-muted);">Body Posture & Structure:</span>
+            <span style="font-weight:700; color:#fff;">${alertData.posture || 'Crouching'} Posture | Estimated Height: ${alertData.height_cm || 174.5} cm</span>
           </div>
           <div>
             <span style="color:var(--text-muted);">Skin Tone & Clothing:</span>
-            <span>Wheatish Complexion | Black Upper / Navy Lower</span>
+            <span>${alertData.skin_tone || 'Wheatish'} Complexion | Upper: ${alertData.upper_color || 'Black'} / Lower: ${alertData.lower_color || 'Navy Blue'}</span>
           </div>
         `;
       }
@@ -1234,11 +1476,11 @@
         </div>
         <div>
           <span style="color:var(--text-muted);">Trigger Rule:</span>
-          <span style="color:#fca5a5; font-weight:700;">${alertData.rule_fired || 'GEO-01: Restricted Perimeter Infiltration'}</span>
+          <span style="color:#fca5a5; font-weight:700;">${alertData.rule_fired || 'GEO-01: Restricted Perimeter Zone Infiltration'}</span>
         </div>
         ${threatBreakdown}
         <div>
-          <span style="color:var(--text-muted);">Timestamp:</span>
+          <span style="color:var(--text-muted);">Detection Timestamp:</span>
           <span style="font-family:var(--font-mono);">${new Date(alertData.timestamp || Date.now()).toLocaleTimeString()}</span>
         </div>
       `;
@@ -1271,7 +1513,7 @@
       setLogCategory('alert');
     }
 
-    // --- 10. Simulation Trigger ---
+    // --- 12. Simulation Trigger ---
     async function triggerSimulatedBreach() {
       const frame = {
         camera_id: "CAM-01",
@@ -1315,14 +1557,20 @@
         rule_fired: "GEO-01: Restricted Perimeter Zone Infiltration & Weapon Detected",
         confidence_score: 0.94,
         timestamp: new Date().toISOString(),
-        entity: { entity_type: "human" }
+        entity: { entity_type: "human" },
+        face_name: "Akash (SUSP-001)",
+        posture: "Crouching",
+        height_cm: 174.5,
+        skin_tone: "Wheatish",
+        upper_color: "Black",
+        lower_color: "Navy Blue"
       });
 
       loadAlerts();
       loadLogs();
     }
 
-    // --- 11. WebSocket Live Bridge ---
+    // --- 13. WebSocket Live Bridge ---
     function initWebSocket() {
       const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${wsProtocol}//${window.location.host}/ws/alerts`;

@@ -34,9 +34,44 @@ def get_db():
     finally:
         db.close()
 
+def _auto_migrate_sqlite(db_engine):
+    """Ensure newly added columns are present in existing SQLite tables."""
+    if not str(db_engine.url).startswith("sqlite"):
+        return
+    import sqlite3
+    raw_path = str(db_engine.url).replace("sqlite:///", "")
+    try:
+        conn = sqlite3.connect(raw_path)
+        cur = conn.cursor()
+        
+        # camera_registry columns
+        cur.execute("PRAGMA table_info(camera_registry)")
+        cam_cols = {row[1] for row in cur.fetchall()}
+        if "stream_url" not in cam_cols:
+            cur.execute("ALTER TABLE camera_registry ADD COLUMN stream_url TEXT")
+            
+        # entity_log columns
+        cur.execute("PRAGMA table_info(entity_log)")
+        ent_cols = {row[1] for row in cur.fetchall()}
+        for col, col_type in [
+            ("vehicle_type", "TEXT"),
+            ("direction", "TEXT"),
+            ("speed_kmh", "REAL"),
+            ("face_name", "TEXT"),
+            ("skin_tone", "TEXT"),
+        ]:
+            if col not in ent_cols:
+                cur.execute(f"ALTER TABLE entity_log ADD COLUMN {col} {col_type}")
+                
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
 def init_db():
     from backend.app.models import User, CameraRegistry, EntityLog, FalseFlagLog, ExportLog, AuditLog
     Base.metadata.create_all(bind=engine)
+    _auto_migrate_sqlite(engine)
     
     # Auto-seed default cameras and users for instant local offline readiness
     db = SessionLocal()
