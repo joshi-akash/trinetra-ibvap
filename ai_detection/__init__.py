@@ -167,6 +167,7 @@ def run_detection_stage(
             "speed_kmh": getattr(entity, "speed_kmh", None) or 0.0,
             "skin_tone": None,
             "posture": None,
+            "props": list(getattr(entity, "extra_props", [])),
         }
 
         if e_type == "human":
@@ -179,8 +180,9 @@ def run_detection_stage(
             gender, _ = estimate_gender(crop)
             attributes["gender"] = gender
 
-            # 3. Posture & Skin Tone
+            # 3. Posture, Props & Skin Tone
             attributes["posture"] = estimate_posture(bbox)
+            attributes["props"] = list(getattr(entity, "extra_props", []))
             attributes["skin_tone"] = estimate_skin_tone(crop, is_low_light=is_low_light)
 
             # 4. Height estimation via ground-plane calibration or proportional scale

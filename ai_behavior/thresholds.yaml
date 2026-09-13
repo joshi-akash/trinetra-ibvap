@@ -26,12 +26,22 @@ behavior:
     - "crouching"
     - "sprinting"
     - "prone"
-  posture_confidence_floor: 0.65
+    - "crawling"
+    - "climbing"
+  posture_confidence_floor: 0.20
   threat_props:
     - "weapon"
+    - "knife"
+    - "gun"
+    - "rifle"
+    - "firearm"
     - "covered_face"
     - "large_backpack"
-  prop_confidence_floor: 0.70
+    - "backpack"
+    - "suitcase"
+    - "handbag"
+    - "big_bag"
+  prop_confidence_floor: 0.20
 
 face_recognition:
   match_confidence_threshold: 0.80

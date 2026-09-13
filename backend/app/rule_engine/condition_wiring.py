@@ -14,10 +14,13 @@ class ConditionWiring:
         default_config = {
             "geofence": {"enabled": True, "min_confidence": 0.50},
             "behavior": {
-                "suspicious_postures": ["crouching", "sprinting", "prone"],
-                "posture_confidence_floor": 0.65,
-                "threat_props": ["weapon", "covered_face", "large_backpack"],
-                "prop_confidence_floor": 0.70
+                "suspicious_postures": ["crouching", "sprinting", "prone", "crawling", "climbing"],
+                "posture_confidence_floor": 0.20,
+                "threat_props": [
+                    "weapon", "knife", "gun", "rifle", "firearm",
+                    "covered_face", "large_backpack", "backpack", "suitcase", "handbag", "big_bag"
+                ],
+                "prop_confidence_floor": 0.20
             },
             "face_recognition": {"match_confidence_threshold": 0.80},
             "tamper": {
