@@ -1024,8 +1024,11 @@
                   onloadeddata="this.style.display='block'; const err = document.getElementById('vid-err-${c.camera_id}'); if (err) err.style.display='none';"
                   onerror="this.style.display='none'; const err = document.getElementById('vid-err-${c.camera_id}'); if (err) err.style.display='flex';"
                 ></video>
-                <div id="vid-err-${c.camera_id}" style="display:none; position:absolute; top:36px; left:10px; z-index:9; background:rgba(220,38,38,0.88); color:#fff; font-size:0.68rem; padding:3px 8px; border-radius:3px; font-weight:700; border:1px solid #ef4444;">
-                  ⚠️ Stream Offline / Codec Fallback (Simulation Active)
+                <div id="vid-err-${c.camera_id}" style="display:none; position:absolute; top:36px; left:8px; right:8px; z-index:9; background:rgba(220,38,38,0.92); color:#fff; font-size:0.68rem; padding:6px 10px; border-radius:4px; font-weight:700; border:1px solid #ef4444; backdrop-filter:blur(4px); justify-content:space-between; align-items:center;">
+                  <span>⚠️ Webpage (.html) or Offline Stream (Simulator Active)</span>
+                  <button onclick="resetCamToLocalPreset('${c.camera_id}')" class="btn" style="padding:2px 8px; font-size:0.65rem; background:#fff; color:#991b1b; font-weight:800; border:none; border-radius:3px; cursor:pointer;">
+                    ⚡ Switch to Local Feed
+                  </button>
                 </div>
               ` : ''}
 
@@ -1091,6 +1094,11 @@
       const urlInput = document.getElementById('stream-modal-url');
       const url = urlInput ? urlInput.value.trim() : "";
 
+      if (url && (url.endsWith('.html') || url.endsWith('.htm') || url.includes('skylinewebcams.com') || url.includes('youtube.com/watch'))) {
+        const proceed = confirm("⚠️ Notice: You entered a website webpage link (.html), not a direct video stream (.mp4/.m3u8/RTSP).\n\nHTML5 video players require direct video streams (e.g. .mp4, .m3u8) rather than an entire webpage. Do you want to save this anyway, or Cancel to pick a local preset?");
+        if (!proceed) return;
+      }
+
       if (!token) await login();
 
       try {
@@ -1123,6 +1131,11 @@
       } catch (e) {
         alert(`❌ Network or server error: ${e.message}`);
       }
+    }
+
+    async function resetCamToLocalPreset(camId) {
+      activeStreamModalCamId = camId || "CAM-01";
+      await applyStreamPresetDirect('/footage/cctv_sample.mp4');
     }
 
     async function uploadModalFootage(event) {
