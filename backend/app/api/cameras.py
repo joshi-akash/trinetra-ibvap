@@ -1,6 +1,6 @@
 import shutil
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
 
@@ -9,9 +9,13 @@ from backend.app.database import get_db
 from backend.app.models import CameraRegistry, EntityLog, User
 from backend.app.schemas import (
     CameraOut, CameraCreate, CalibrationRequest,
-    StreamUpdateRequest, GenericStatusResponse
+    StreamUpdateRequest, GenericStatusResponse,
+    FrameDetectRequest, FrameDetectResponse, DetectedEntityOut
 )
 from backend.app.auth.jwt_auth import get_current_user
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/cameras", tags=["Cameras"])
 
@@ -88,6 +92,48 @@ def delete_camera(
         db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to delete camera: {str(e)}")
 
+def resolve_live_stream_url(url: Optional[str]) -> Optional[str]:
+    """
+    Resolves a public webcam webpage (e.g. SkylineWebcams) or page link
+    into a direct HLS (.m3u8) or MP4 video stream URL.
+    """
+    if not url:
+        return None
+    clean_url = url.strip()
+    if not clean_url:
+        return None
+
+    # 1. Direct video streams require no resolution
+    lower_url = clean_url.lower()
+    if any(lower_url.endswith(ext) or (ext + "?") in lower_url for ext in [".mp4", ".m3u8", ".webm", ".ogg", ".ts"]):
+        return clean_url
+
+    # 2. SkylineWebcams pages (e.g. .../lamai.html)
+    if "skylinewebcams.com" in lower_url:
+        try:
+            import urllib.request
+            import re
+            req = urllib.request.Request(
+                clean_url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Referer": "https://www.skylinewebcams.com/"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=6) as resp:
+                html = resp.read().decode("utf-8", errors="ignore")
+            # Extract source:'livee.m3u8?a=...'
+            m = re.search(r"source\s*:\s*['\"](livee\.m3u8\?[^'\"]+)['\"]", html)
+            if m:
+                source = m.group(1).replace("livee.", "live.")
+                resolved = f"https://hd-auth.skylinewebcams.com/{source}"
+                logger.info(f"Resolved SkylineWebcams page '{clean_url}' -> '{resolved}'")
+                return resolved
+        except Exception as e:
+            logger.warning(f"Failed to resolve SkylineWebcams URL '{clean_url}': {e}")
+
+    return clean_url
+
 @router.put("/{camera_id}/stream", response_model=GenericStatusResponse)
 def update_camera_stream(
     camera_id: str,
@@ -100,7 +146,8 @@ def update_camera_stream(
         clean_id = "CAM-01"
 
     camera = db.query(CameraRegistry).filter(CameraRegistry.camera_id == clean_id).first()
-    new_url = req.stream_url.strip() if (req.stream_url and req.stream_url.strip()) else None
+    raw_url = req.stream_url.strip() if (req.stream_url and req.stream_url.strip()) else None
+    new_url = resolve_live_stream_url(raw_url)
 
     if not camera:
         # Auto-create camera if not already registered
@@ -117,7 +164,10 @@ def update_camera_stream(
         camera.stream_url = new_url
 
     db.commit()
-    return GenericStatusResponse(status="success", message=f"Stream URL updated for {clean_id}")
+    msg = f"Stream URL updated for {clean_id}"
+    if new_url and new_url != raw_url:
+        msg = f"Live HLS stream auto-resolved & updated for {clean_id}"
+    return GenericStatusResponse(status="success", message=msg)
 
 @router.post("/{camera_id}/upload-footage", response_model=GenericStatusResponse)
 async def upload_camera_footage(
@@ -192,3 +242,66 @@ def calibrate_camera(
     db.commit()
 
     return GenericStatusResponse(status="success", message=f"Calibration points updated for {camera_id}")
+
+@router.post("/{camera_id}/detect-frame", response_model=FrameDetectResponse)
+def detect_camera_frame(
+    camera_id: str,
+    req: FrameDetectRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Live AI detection endpoint for playing CCTV video footage.
+    Runs YOLOv8 detector, ByteTrack tracking, and biometrics on the extracted video frame.
+    Returns real bounding boxes and attributes correlated directly with the video objects.
+    """
+    import base64
+    import cv2
+    import numpy as np
+
+    raw_b64 = req.image
+    if "," in raw_b64:
+        raw_b64 = raw_b64.split(",", 1)[1]
+
+    frame_w = req.width or 640
+    frame_h = req.height or 360
+
+    try:
+        img_bytes = base64.b64decode(raw_b64)
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if frame is None:
+            return FrameDetectResponse(camera_id=camera_id, entities=[], frame_width=frame_w, frame_height=frame_h)
+    except Exception as e:
+        logger.warning(f"Error decoding base64 frame for {camera_id}: {e}")
+        return FrameDetectResponse(camera_id=camera_id, entities=[], frame_width=frame_w, frame_height=frame_h)
+
+    h, w = frame.shape[:2]
+
+    try:
+        from ai_detection import run_detection_stage
+        raw_entities = run_detection_stage(frame, camera_id=camera_id)
+    except Exception as e:
+        logger.warning(f"Detection stage error: {e}")
+        raw_entities = []
+
+    detected_out = []
+    for ent in raw_entities:
+        bbox = [int(v) for v in ent.get("bbox", [0, 0, 0, 0])]
+        attrs = ent.get("attributes", {})
+        if not isinstance(attrs, dict):
+            attrs = {}
+
+        detected_out.append(DetectedEntityOut(
+            entity_type=ent.get("entity_type", "unknown"),
+            bbox=bbox,
+            confidence=round(float(ent.get("confidence", 0.85)), 2),
+            track_id=ent.get("track_id"),
+            attributes=attrs
+        ))
+
+    return FrameDetectResponse(
+        camera_id=camera_id,
+        entities=detected_out,
+        frame_width=w,
+        frame_height=h
+    )

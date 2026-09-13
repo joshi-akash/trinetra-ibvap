@@ -49,6 +49,8 @@ app.mount("/footage", StaticFiles(directory=str(FOOTAGE_DIR)), name="footage")
 from pathlib import Path
 from fastapi.responses import FileResponse
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+STATIC_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 @app.get("/", include_in_schema=False)
 @app.get("/dashboard", include_in_schema=False)

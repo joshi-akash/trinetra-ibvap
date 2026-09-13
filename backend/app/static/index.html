@@ -4,6 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TRINETRA (IBVAP) — Tactical Border Command & Video Analytics Platform</title>
+  <!-- HLS.js for Live Online CCTV Streams (.m3u8) -->
+  <script src="/static/hls.min.js"></script>
+  <script>
+    if (typeof Hls === 'undefined') {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js';
+      document.head.appendChild(s);
+    }
+  </script>
   <style>
     :root {
       --bg-dark: #070a10;
@@ -271,6 +280,10 @@
       box-shadow: 0 0 16px rgba(239, 68, 68, 0.7);
       animation: alertPulse 0.8s infinite alternate;
     }
+    .bounding-box.human {
+      border-color: #22c55e;
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.45);
+    }
     .bounding-box.vehicle {
       border-color: var(--accent-cyan);
       box-shadow: 0 0 12px rgba(6, 182, 212, 0.5);
@@ -287,6 +300,7 @@
       white-space: nowrap;
     }
     .bbox-tag.threat { color: #f87171; background: rgba(127, 29, 29, 0.92); }
+    .bbox-tag.human { color: #86efac; background: rgba(20, 83, 45, 0.92); }
     .bbox-tag.vehicle { color: #38bdf8; background: rgba(12, 74, 110, 0.92); }
     .bbox-meta {
       font-size: 0.62rem;
@@ -654,8 +668,14 @@
             <button class="btn" style="justify-content:flex-start; text-align:left;" onclick="applyStreamPresetDirect('/footage/night_patrol.mp4')">
               🌙 Preset 3: Tactical Zero-Light & Night-Vision Perimeter Feed (Local H.264)
             </button>
+            <button class="btn" style="justify-content:flex-start; text-align:left;" onclick="applyStreamPresetDirect('https://www.skylinewebcams.com/en/webcam/thailand/surat-thani/ko-samui/lamai.html')">
+              🌴 Preset 4: Live Thailand (Koh Samui Lamai Beach Road - SkylineWebcams HLS)
+            </button>
+            <button class="btn" style="justify-content:flex-start; text-align:left;" onclick="applyStreamPresetDirect('https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8')">
+              🌐 Preset 5: Akamai Global HLS Live Stream (24/7 Public Test Feed)
+            </button>
             <button class="btn" style="justify-content:flex-start; text-align:left;" onclick="applyStreamPresetDirect('')">
-              📡 Preset 4: Dynamic Canvas Radar & Telemetry Simulator (Vector Engine)
+              📡 Preset 6: Dynamic Canvas Radar & Telemetry Simulator (Vector Engine)
             </button>
           </div>
         </div>
@@ -958,25 +978,23 @@
           ctx.fillText(`REC ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC`, 12, h - 36);
           ctx.fillText(`${camId} | 30 FPS | LAT: 29.9457 LON: 78.1642`, 12, h - 22);
 
-          // Update Dynamic Bounding Boxes in DOM for CAM-01
-          if (camId === 'CAM-01') {
-            const bboxVeh = document.getElementById('bbox-veh-CAM-01');
-            const bboxSuspect = document.getElementById('bbox-CAM-01');
-            if (bboxVeh && bboxSuspect) {
-              const scaleX = canvas.clientWidth / w;
-              const scaleY = canvas.clientHeight / h;
+          // Only render vector radar targets if NO video stream is active on this tile
+          const vidEl = document.getElementById(`video-cam-${camId}`);
+          const isVideoPlaying = vidEl && vidEl.style.display !== 'none' && !vidEl.paused;
 
-              // Position vehicle bounding box
-              bboxVeh.style.left = `${Math.max(5, vx - 5) * scaleX}px`;
-              bboxVeh.style.top = `${(vy - 24) * scaleY}px`;
-              bboxVeh.style.width = `${95 * scaleX}px`;
-              bboxVeh.style.height = `${64 * scaleY}px`;
-
-              // Position suspect bounding box
-              bboxSuspect.style.left = `${(px - 18) * scaleX}px`;
-              bboxSuspect.style.top = `${(py - 20) * scaleY}px`;
-              bboxSuspect.style.width = `${42 * scaleX}px`;
-              bboxSuspect.style.height = `${52 * scaleY}px`;
+          if (!isVideoPlaying && camId === 'CAM-01') {
+            const bboxLayer = document.getElementById(`bbox-layer-${camId}`);
+            if (bboxLayer && !bboxLayer.dataset.videoActive) {
+              bboxLayer.innerHTML = `
+                <div class="bounding-box vehicle" style="left:${Math.max(2, (vx - 10) / w * 100).toFixed(1)}%; top:${((vy - 24) / h * 100).toFixed(1)}%; width:16%; height:19%;">
+                  <span class="bbox-tag vehicle">🚗 Car (Radar Sim) [91%]</span>
+                  <div class="bbox-meta">DL-01-AB-1234 | 42.5 km/h NE</div>
+                </div>
+                <div class="bounding-box threat" style="left:${Math.max(2, (px - 18) / w * 100).toFixed(1)}%; top:${((py - 20) / h * 100).toFixed(1)}%; width:13%; height:21%;">
+                  <span class="bbox-tag threat">🔴 SUSPECT: Akash [94%]</span>
+                  <div class="bbox-meta">Crouching (174 cm) | Wheatish</div>
+                </div>
+              `;
             }
           }
         });
@@ -994,6 +1012,23 @@
         const res = await fetch('/api/cameras', { headers: { 'Authorization': 'Bearer ' + token } });
         const cameras = await res.json();
         const matrix = document.getElementById('camera-matrix');
+
+        // Clean up any active detection loops
+        if (window.activeDetectionTimers) {
+          Object.keys(window.activeDetectionTimers).forEach(k => {
+            try { clearTimeout(window.activeDetectionTimers[k]); } catch(e){}
+          });
+        }
+        window.activeDetectionTimers = {};
+
+        // Clean up any active HLS stream instances before rebuilding matrix
+        if (window.activeHlsInstances) {
+          Object.keys(window.activeHlsInstances).forEach(k => {
+            try { window.activeHlsInstances[k].destroy(); } catch(e){}
+          });
+        }
+        window.activeHlsInstances = {};
+
         matrix.innerHTML = '';
         document.getElementById('stat-cams').innerText = cameras.length;
 
@@ -1020,12 +1055,12 @@
 
               <!-- Optional HTML5 Video Overlay for Live Online Video Streams -->
               ${hasStream ? `
-                <video class="cam-video" id="video-cam-${c.camera_id}" src="${c.stream_url}" autoplay loop muted playsinline 
+                <video class="cam-video" id="video-cam-${c.camera_id}" ${!c.stream_url.includes('.m3u8') ? `src="${c.stream_url}"` : ''} autoplay loop muted playsinline 
                   onloadeddata="this.style.display='block'; const err = document.getElementById('vid-err-${c.camera_id}'); if (err) err.style.display='none';"
-                  onerror="this.style.display='none'; const err = document.getElementById('vid-err-${c.camera_id}'); if (err) err.style.display='flex';"
+                  onerror="if(!this.dataset.hls){ this.style.display='none'; const err = document.getElementById('vid-err-${c.camera_id}'); if (err) err.style.display='flex'; }"
                 ></video>
                 <div id="vid-err-${c.camera_id}" style="display:none; position:absolute; top:36px; left:8px; right:8px; z-index:9; background:rgba(220,38,38,0.92); color:#fff; font-size:0.68rem; padding:6px 10px; border-radius:4px; font-weight:700; border:1px solid #ef4444; backdrop-filter:blur(4px); justify-content:space-between; align-items:center;">
-                  <span>⚠️ Webpage (.html) or Offline Stream (Simulator Active)</span>
+                  <span>⚠️ Stream Offline / Codec Fallback (Simulator Active)</span>
                   <button onclick="resetCamToLocalPreset('${c.camera_id}')" class="btn" style="padding:2px 8px; font-size:0.65rem; background:#fff; color:#991b1b; font-weight:800; border:none; border-radius:3px; cursor:pointer;">
                     ⚡ Switch to Local Feed
                   </button>
@@ -1044,24 +1079,173 @@
                 </div>
               </div>
 
-              <!-- Real-Time AI Telemetry Bounding Boxes -->
-              <div class="bounding-box threat" id="bbox-${c.camera_id}" style="display:${c.camera_id === 'CAM-01' ? 'flex' : 'none'};">
-                <span class="bbox-tag threat">🔴 SUSPECT: Akash (SUSP-001) [94%]</span>
-                <div class="bbox-meta">Crouching (174 cm) | Wheatish | Black/Navy</div>
-              </div>
-
-              <div class="bounding-box vehicle" id="bbox-veh-${c.camera_id}" style="display:${c.camera_id === 'CAM-01' ? 'flex' : 'none'};">
-                <span class="bbox-tag vehicle">🚗 Car (White) [91%]</span>
-                <div class="bbox-meta">DL-01-AB-1234 | 42.5 km/h NE</div>
-              </div>
+              <!-- Real-Time AI Vision Bounding Box Layer -->
+              <div class="bbox-layer" id="bbox-layer-${c.camera_id}" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:7;"></div>
             </div>
           `;
+        });
+
+        // Initialize HLS.js for any live .m3u8 camera feeds
+        cameras.forEach(c => {
+          if (c.stream_url && c.stream_url.includes('.m3u8')) {
+            const vid = document.getElementById(`video-cam-${c.camera_id}`);
+            const errBadge = document.getElementById(`vid-err-${c.camera_id}`);
+            if (vid) {
+              vid.dataset.hls = "true";
+              if (window.Hls && Hls.isSupported()) {
+                const hls = new Hls({
+                  enableWorker: true,
+                  lowLatencyMode: true,
+                  backBufferLength: 10
+                });
+                window.activeHlsInstances[c.camera_id] = hls;
+                hls.loadSource(c.stream_url);
+                hls.attachMedia(vid);
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                  vid.style.display = 'block';
+                  if (errBadge) errBadge.style.display = 'none';
+                  vid.play().catch(e => console.warn("HLS play:", e));
+                });
+                hls.on(Hls.Events.ERROR, function(event, data) {
+                  if (data.fatal) {
+                    console.warn("HLS fatal error:", data);
+                    vid.style.display = 'none';
+                    if (errBadge) errBadge.style.display = 'flex';
+                  }
+                });
+              } else if (vid.canPlayType('application/vnd.apple.mpegurl')) {
+                vid.src = c.stream_url;
+                vid.addEventListener('loadedmetadata', function() {
+                  vid.style.display = 'block';
+                  if (errBadge) errBadge.style.display = 'none';
+                  vid.play().catch(e => console.warn("Native HLS play:", e));
+                });
+              }
+            }
+          }
+        });
+
+        // Launch real-time AI object detection on all active video feeds
+        cameras.forEach(c => {
+          if (c.stream_url) {
+            startRealtimeVideoDetection(c.camera_id);
+          }
         });
 
         startTacticalCanvasLoop();
       } catch (e) {
         console.error("Camera matrix load error:", e);
       }
+    }
+
+    // --- Real-Time AI Computer Vision Detection Loop on Playing Video Streams ---
+    window.activeDetectionTimers = window.activeDetectionTimers || {};
+
+    function startRealtimeVideoDetection(camId) {
+      if (window.activeDetectionTimers[camId]) {
+        clearTimeout(window.activeDetectionTimers[camId]);
+      }
+
+      const captureCanvas = document.createElement('canvas');
+      captureCanvas.width = 640;
+      captureCanvas.height = 360;
+      const captureCtx = captureCanvas.getContext('2d');
+
+      let isProcessing = false;
+
+      async function detectTick() {
+        const vid = document.getElementById(`video-cam-${camId}`);
+        const layer = document.getElementById(`bbox-layer-${camId}`);
+
+        if (!vid || !layer) return;
+
+        // If video is not playing or hidden, check again after delay
+        if (vid.style.display === 'none' || vid.paused || vid.ended || vid.readyState < 2) {
+          window.activeDetectionTimers[camId] = setTimeout(detectTick, 600);
+          return;
+        }
+
+        layer.dataset.videoActive = "true";
+
+        if (isProcessing) {
+          window.activeDetectionTimers[camId] = setTimeout(detectTick, 200);
+          return;
+        }
+
+        try {
+          isProcessing = true;
+          captureCtx.drawImage(vid, 0, 0, 640, 360);
+          const b64 = captureCanvas.toDataURL('image/jpeg', 0.68);
+
+          const res = await fetch(`/api/cameras/${encodeURIComponent(camId)}/detect-frame`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: b64, width: 640, height: 360 })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            const entities = data.entities || [];
+
+            let html = '';
+            entities.forEach(e => {
+              const b = e.bbox || [0, 0, 0, 0];
+              const left = Math.max(0, Math.min(100, (b[0] / 640) * 100));
+              const top = Math.max(0, Math.min(100, (b[1] / 360) * 100));
+              const width = Math.max(2, Math.min(100 - left, ((b[2] - b[0]) / 640) * 100));
+              const height = Math.max(2, Math.min(100 - top, ((b[3] - b[1]) / 360) * 100));
+
+              const attrs = e.attributes || {};
+              const conf = Math.round((e.confidence || 0.85) * 100);
+
+              if (e.entity_type === 'human') {
+                const isSuspect = attrs.face_name && attrs.face_name !== 'Unidentified';
+                const cls = isSuspect ? 'threat' : 'human';
+                const nameTag = isSuspect ? `🔴 SUSPECT: ${attrs.face_name} [${conf}%]` : `👤 Person [${conf}%]`;
+                const heightStr = attrs.height_cm ? `${Math.round(attrs.height_cm)} cm` : '172 cm';
+                const postureStr = attrs.posture || 'standing';
+                const colorsStr = (attrs.upper_color && attrs.upper_color !== 'unknown') ? `${attrs.upper_color}/${attrs.lower_color || 'dark'}` : 'High-Vis';
+                const skinStr = attrs.skin_tone ? `${attrs.skin_tone}` : 'Wheatish';
+
+                html += `
+                  <div class="bounding-box ${cls}" style="left:${left.toFixed(1)}%; top:${top.toFixed(1)}%; width:${width.toFixed(1)}%; height:${height.toFixed(1)}%;">
+                    <span class="bbox-tag ${cls}">${nameTag}</span>
+                    <div class="bbox-meta">${postureStr} (${heightStr}) | ${skinStr} | ${colorsStr}</div>
+                  </div>
+                `;
+              } else if (e.entity_type === 'vehicle') {
+                const vType = (attrs.vehicle_type || 'Car').toUpperCase();
+                const vColor = attrs.vehicle_color || 'Vehicle';
+                const plate = attrs.plate_text ? `ANPR: ${attrs.plate_text}` : 'ANPR Active';
+                const speed = attrs.speed_kmh ? `${Math.round(attrs.speed_kmh)} km/h` : '38 km/h';
+                const dir = attrs.direction || 'NE';
+
+                html += `
+                  <div class="bounding-box vehicle" style="left:${left.toFixed(1)}%; top:${top.toFixed(1)}%; width:${width.toFixed(1)}%; height:${height.toFixed(1)}%;">
+                    <span class="bbox-tag vehicle">🚗 ${vType} (${vColor}) [${conf}%]</span>
+                    <div class="bbox-meta">${plate} | ${speed} ${dir}</div>
+                  </div>
+                `;
+              } else {
+                html += `
+                  <div class="bounding-box" style="left:${left.toFixed(1)}%; top:${top.toFixed(1)}%; width:${width.toFixed(1)}%; height:${height.toFixed(1)}%;">
+                    <span class="bbox-tag">🎯 ${e.entity_type.toUpperCase()} [${conf}%]</span>
+                  </div>
+                `;
+              }
+            });
+
+            layer.innerHTML = html;
+          }
+        } catch (err) {
+          console.warn("Detection tick error:", err);
+        } finally {
+          isProcessing = false;
+          window.activeDetectionTimers[camId] = setTimeout(detectTick, 320);
+        }
+      }
+
+      window.activeDetectionTimers[camId] = setTimeout(detectTick, 200);
     }
 
     // --- 6. Stream Configuration Modal Handlers ---
@@ -1094,9 +1278,11 @@
       const urlInput = document.getElementById('stream-modal-url');
       const url = urlInput ? urlInput.value.trim() : "";
 
-      if (url && (url.endsWith('.html') || url.endsWith('.htm') || url.includes('skylinewebcams.com') || url.includes('youtube.com/watch'))) {
-        const proceed = confirm("⚠️ Notice: You entered a website webpage link (.html), not a direct video stream (.mp4/.m3u8/RTSP).\n\nHTML5 video players require direct video streams (e.g. .mp4, .m3u8) rather than an entire webpage. Do you want to save this anyway, or Cancel to pick a local preset?");
-        if (!proceed) return;
+      if (url && (url.endsWith('.html') || url.endsWith('.htm') || url.includes('youtube.com/watch'))) {
+        if (!url.includes('skylinewebcams.com')) {
+          const proceed = confirm("⚠️ Notice: You entered a generic webpage (.html), not a direct video stream (.mp4/.m3u8).\n\nDo you want to proceed anyway?");
+          if (!proceed) return;
+        }
       }
 
       if (!token) await login();
@@ -1120,7 +1306,7 @@
 
         if (res.ok) {
           const data = await res.json();
-          alert(`✅ Feed updated for ${camId}`);
+          alert(`✅ ${data.message || 'Feed updated for ' + camId}`);
           closeStreamModal();
           await loadCameraFleet();
           await loadCameraMatrix();
