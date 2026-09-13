@@ -121,7 +121,7 @@ class YOLOv8Detector:
     def __init__(
         self,
         model_path: Optional[str] = None,
-        confidence_threshold: float = 0.25,
+        confidence_threshold: float = 0.35,
         device: Optional[str] = None,
     ):
         """
@@ -243,8 +243,6 @@ class YOLOv8Detector:
                             continue
 
                         score = float(box.conf[0].item())
-                        if score < conf:
-                            continue
 
                         # Coordinates
                         xyxy = box.xyxy[0].cpu().numpy().astype(int)
@@ -252,7 +250,29 @@ class YOLOv8Detector:
                         y1 = max(0, min(h - 1, int(xyxy[1])))
                         x2 = max(x1 + 1, min(w, int(xyxy[2])))
                         y2 = max(y1 + 1, min(h, int(xyxy[3])))
+                        box_w = x2 - x1
+                        box_h = y2 - y1
                         bbox = [x1, y1, x2, y2]
+
+                        # Specific class-level confidence and dimensional sanity filtering
+                        if entity_type == "human":
+                            if score < 0.35:
+                                continue
+                        elif entity_type == "vehicle":
+                            # Avoid small cardboard boxes/trash cans being detected as vehicles in CCTV
+                            if score < 0.48 or (box_w * box_h) < 2800:
+                                continue
+                        elif entity_type == "animal":
+                            # In elevated CCTV angles, pedestrians foreshortened from above
+                            # often get misidentified by standard COCO as animals (dogs, sheep, cats).
+                            # If the subject is upright and person-sized, reclassify as human.
+                            if box_h >= 55 and (box_h / max(1, box_w)) >= 0.75:
+                                entity_type = "human"
+                            elif score < 0.65:
+                                continue
+                        elif entity_type in ("weapon", "large_backpack"):
+                            if score < 0.35:
+                                continue
 
                         # Collect weapons & large bags as threat props
                         if entity_type in ("weapon", "large_backpack"):
@@ -283,8 +303,34 @@ class YOLOv8Detector:
                             )
                         )
 
+                # Class-Agnostic Non-Maximum Suppression (NMS) Deduplication
+                # Prevents multiple overlapping boxes stacked on the same entity
+                def _compute_box_iou(b1, b2):
+                    xA = max(b1[0], b2[0])
+                    yA = max(b1[1], b2[1])
+                    xB = min(b1[2], b2[2])
+                    yB = min(b1[3], b2[3])
+                    inter = max(0, xB - xA) * max(0, yB - yA)
+                    if inter <= 0:
+                        return 0.0
+                    a1 = (b1[2] - b1[0]) * (b1[3] - b1[1])
+                    a2 = (b2[2] - b2[0]) * (b2[3] - b2[1])
+                    return inter / float(a1 + a2 - inter)
+
+                raw_entities.sort(key=lambda e: e.confidence, reverse=True)
+                deduped_entities: List[DetectedEntity] = []
+
+                for ent in raw_entities:
+                    overlap_found = False
+                    for accepted in deduped_entities:
+                        if _compute_box_iou(ent.bbox, accepted.bbox) >= 0.40:
+                            overlap_found = True
+                            break
+                    if not overlap_found:
+                        deduped_entities.append(ent)
+
                 # Associate threat props with overlapping/nearby persons
-                for h_ent in raw_entities:
+                for h_ent in deduped_entities:
                     if h_ent.entity_type == "human":
                         hx1, hy1, hx2, hy2 = h_ent.bbox
                         pad_x = (hx2 - hx1) * 0.35
@@ -296,7 +342,7 @@ class YOLOv8Detector:
                                 if p["prop_type"] not in h_ent.extra_props:
                                     h_ent.extra_props.append(p["prop_type"])
 
-                return raw_entities
+                return deduped_entities
             except Exception as e:
                 logger.error("Error during YOLOv8 detection inference: %s. Falling back.", e)
 
