@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRINETRA — Tactical Border Surveillance Dashboard</title>
+  <style>
+    :root {
+      --bg-dark: #0f141c;
+      --panel-bg: #18202c;
+      --card-bg: #212c3d;
+      --border-color: #2e3d52;
+      --accent-red: #ef4444;
+      --accent-green: #10b981;
+      --accent-blue: #3b82f6;
+      --accent-yellow: #f59e0b;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--bg-dark); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Header */
+    header {
+      background-color: var(--panel-bg);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand h1 { font-size: 1.25rem; font-weight: 800; letter-spacing: 1px; color: #fff; }
+    .badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+    .badge-offline { background: #065f46; color: #6ee7b7; }
+    .badge-siren { background: #991b1b; color: #fca5a5; display: none; }
+    .header-actions { display: flex; gap: 12px; align-items: center; }
+    .btn {
+      background: var(--card-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn:hover { border-color: var(--accent-blue); background: #2a384d; }
+    .btn-danger { background: #dc2626; border-color: #ef4444; color: #fff; }
+    .btn-danger:hover { background: #b91c1c; }
+
+    /* Main Layout */
+    .app-body { display: flex; flex: 1; overflow: hidden; }
+
+    /* Sidebar Navigation */
+    nav {
+      width: 220px;
+      background: var(--panel-bg);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      padding: 16px 8px;
+      gap: 6px;
+    }
+    .nav-item {
+      padding: 10px 14px;
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .nav-item:hover, .nav-item.active {
+      background: var(--card-bg);
+      color: #fff;
+      border-left: 3px solid var(--accent-blue);
+    }
+
+    /* Content Area */
+    main { flex: 1; padding: 20px; overflow-y: auto; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Camera Grid */
+    .camera-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .cam-tile {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      height: 260px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    .cam-tile:hover { border-color: var(--accent-blue); }
+    .cam-header {
+      position: absolute;
+      top: 10px; left: 10px; right: 10px;
+      display: flex; justify-content: space-between; align-items: center;
+      z-index: 10;
+    }
+    .cam-status { font-size: 0.75rem; display: flex; align-items: center; gap: 6px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot-green { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+    .cam-placeholder { color: var(--text-muted); text-align: center; }
+    .cam-placeholder span { font-size: 2.5rem; display: block; margin-bottom: 8px; }
+
+    /* Alert Cards */
+    .alert-list { display: flex; flex-direction: column; gap: 12px; }
+    .alert-card {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--accent-red);
+      border-radius: 6px;
+      padding: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s;
+    }
+    .alert-card:hover { background: var(--card-bg); }
+    .alert-info h3 { font-size: 1rem; color: #fff; margin-bottom: 4px; }
+    .alert-info p { font-size: 0.85rem; color: var(--text-muted); }
+    .alert-actions { display: flex; gap: 8px; }
+
+    /* Search Bar */
+    .search-box {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .search-input {
+      flex: 1;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      padding: 10px 14px;
+      color: #fff;
+      border-radius: 6px;
+      font-size: 0.95rem;
+    }
+    .search-input:focus { outline: none; border-color: var(--accent-blue); }
+
+    /* Notification banner */
+    #siren-banner {
+      background: #dc2626;
+      color: white;
+      text-align: center;
+      padding: 8px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      display: none;
+      animation: pulse 1s infinite alternate;
+    }
+    @keyframes pulse { from { opacity: 0.8; } to { opacity: 1.0; } }
+  </style>
+</head>
+<body>
+
+  <div id="siren-banner">⚠️ ACTIVE TACTICAL BREACH DETECTED — SIREN ARMED ⚠️</div>
+
+  <header>
+    <div class="brand">
+      <h1>TRINETRA</h1>
+      <span class="badge badge-offline">Sovereign Offline Edge (BOP Sector Alpha)</span>
+      <span id="threat-badge" class="badge badge-siren">Active Breach</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-danger" onclick="triggerSimulatedBreach()">🚨 Simulate Intruder Breach</button>
+      <button class="btn" onclick="fetchAlerts()">🔄 Refresh</button>
+      <a href="/docs" target="_blank" class="btn">📖 Swagger Docs</a>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <nav>
+      <div class="nav-item active" onclick="switchTab('live-view')">📹 Live View (Grid)</div>
+      <div class="nav-item" onclick="switchTab('alert-feed')">🚨 Alert Feed <span id="alert-count-pill" style="margin-left:auto; background:#dc2626; border-radius:10px; padding:2px 6px; font-size:0.7rem;">0</span></div>
+      <div class="nav-item" onclick="switchTab('vernacular-search')">🔍 Vernacular Search</div>
+      <div class="nav-item" onclick="switchTab('camera-mgmt')">⚙️ Cameras & Trust</div>
+    </nav>
+
+    <main>
+      <!-- TAB 1: Live View -->
+      <div id="tab-live-view" class="tab-content active">
+        <h2 style="margin-bottom: 14px; font-size: 1.2rem;">Live Outpost Video Feeds</h2>
+        <div class="camera-grid" id="camera-grid">
+          <!-- Dynamically Populated -->
+        </div>
+      </div>
+
+      <!-- TAB 2: Alert Feed -->
+      <div id="tab-alert-feed" class="tab-content">
+        <h2 style="margin-bottom: 14px; font-size: 1.2rem;">Active Unacknowledged Alerts</h2>
+        <div class="alert-list" id="alert-list-container">
+          <p style="color: var(--text-muted);">No active threats currently detected.</p>
+        </div>
+      </div>
+
+      <!-- TAB 3: Vernacular Search -->
+      <div id="tab-vernacular-search" class="tab-content">
+        <h2 style="margin-bottom: 14px; font-size: 1.2rem;">Multilingual Forensic Search (Hindi/Hinglish/English)</h2>
+        <div class="search-box">
+          <input type="text" id="search-input" class="search-input" placeholder="e.g. 'laal shirt aadmi' or 'kal subah crouching' or 'vehicle red'" value="laal shirt aadmi">
+          <button class="btn" style="background: var(--accent-blue);" onclick="performSearch()">Search</button>
+        </div>
+        <div id="search-results" class="alert-list"></div>
+      </div>
+
+      <!-- TAB 4: Cameras -->
+      <div id="tab-camera-mgmt" class="tab-content">
+        <h2 style="margin-bottom: 14px; font-size: 1.2rem;">Camera Registry & Health Telemetry</h2>
+        <div id="camera-list-details" class="alert-list"></div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    let token = "";
+
+    async function login() {
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({username: 'commander', password: 'commander123'})
+        });
+        const data = await res.json();
+        token = data.access_token;
+      } catch (e) {
+        console.error("Auth error", e);
+      }
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+    }
+
+    async function loadCameras() {
+      if (!token) await login();
+      try {
+        const res = await fetch('/api/cameras', { headers: { 'Authorization': 'Bearer ' + token } });
+        const cameras = await res.json();
+        const grid = document.getElementById('camera-grid');
+        const details = document.getElementById('camera-list-details');
+        grid.innerHTML = '';
+        details.innerHTML = '';
+
+        cameras.forEach(c => {
+          grid.innerHTML += `
+            <div class="cam-tile">
+              <div class="cam-header">
+                <span style="font-weight: 700;">${c.camera_id}</span>
+                <span class="cam-status"><span class="dot dot-green"></span> ${c.status.toUpperCase()} (${Math.round(c.trust_score * 100)}% Trust)</span>
+              </div>
+              <div class="cam-placeholder">
+                <span>📹</span>
+                <p>SECTOR BOUNDARY FEED</p>
+                <p style="font-size: 0.75rem; margin-top: 4px;">Lat: ${c.location ? c.location.lat : '29.9457'} | Lon: ${c.location ? c.location.lon : '78.1642'}</p>
+              </div>
+            </div>
+          `;
+
+          details.innerHTML += `
+            <div class="alert-card" style="border-left-color: var(--accent-green);">
+              <div class="alert-info">
+                <h3>${c.camera_id} — Trust: ${Math.round(c.trust_score * 100)}%</h3>
+                <p>Status: ${c.status} | Geo-Fence Vertices: ${c.geo_fence_polygon ? c.geo_fence_polygon.length : 0}</p>
+              </div>
+            </div>
+          `;
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function fetchAlerts() {
+      if (!token) await login();
+      try {
+        const res = await fetch('/api/alerts/active', { headers: { 'Authorization': 'Bearer ' + token } });
+        const alerts = await res.json();
+        const container = document.getElementById('alert-list-container');
+        document.getElementById('alert-count-pill').innerText = alerts.length;
+
+        if (alerts.length > 0) {
+          document.getElementById('siren-banner').style.display = 'block';
+          document.getElementById('threat-badge').style.display = 'inline-block';
+        } else {
+          document.getElementById('siren-banner').style.display = 'none';
+          document.getElementById('threat-badge').style.display = 'none';
+        }
+
+        if (alerts.length === 0) {
+          container.innerHTML = '<p style="color: var(--text-muted);">No active threats currently detected.</p>';
+          return;
+        }
+
+        container.innerHTML = '';
+        alerts.forEach(a => {
+          container.innerHTML += `
+            <div class="alert-card">
+              <div class="alert-info">
+                <h3>🚨 ${a.alert_type.toUpperCase()} ALERT — ${a.camera_id} (${Math.round(a.confidence_score * 100)}%)</h3>
+                <p>Rule: ${a.rule_fired || 'Breach detected'} | Time: ${new Date(a.timestamp).toLocaleTimeString()}</p>
+              </div>
+              <div class="alert-actions">
+                ${a.clip_url ? `<a href="${a.clip_url}" target="_blank" class="btn">View Clip</a>` : ''}
+                <button class="btn" style="background: var(--accent-blue);" onclick="exportAlert('${a.id}')">HQ Export</button>
+                <button class="btn" style="background: var(--accent-green);" onclick="acknowledgeAlert('${a.id}')">Acknowledge</button>
+              </div>
+            </div>
+          `;
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function acknowledgeAlert(alertId) {
+      if (!token) await login();
+      await fetch(`/api/alerts/${alertId}/acknowledge`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: "Acknowledged on tactical dashboard" })
+      });
+      fetchAlerts();
+    }
+
+    async function exportAlert(alertId) {
+      if (!token) await login();
+      const res = await fetch(`/api/entities/${alertId}/export`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ include_clip: true, channel: 'local_bundle' })
+      });
+      const data = await res.json();
+      alert(`HQ Signed Export Bundle Generated!\nSHA-256: ${data.payload_hash.substring(0, 24)}...\nDownload: ${data.download_url}`);
+    }
+
+    async function performSearch() {
+      if (!token) await login();
+      const query = document.getElementById('search-input').value;
+      const res = await fetch('/api/search', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: query })
+      });
+      const data = await res.json();
+      const container = document.getElementById('search-results');
+      container.innerHTML = `<p style="color:var(--text-muted); margin-bottom: 8px;">Resolved: ${JSON.stringify(data.parsed_filters.resolved)} (${data.total_count} matches)</p>`;
+
+      data.results.forEach(r => {
+        container.innerHTML += `
+          <div class="alert-card" style="border-left-color: var(--accent-blue);">
+            <div class="alert-info">
+              <h3>Target: ${r.entity_type} (${r.upper_color || 'Unknown color'}) — Cam ${r.camera_id}</h3>
+              <p>Time: ${new Date(r.timestamp).toLocaleString()} | Alert Status: ${r.is_alert}</p>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    async function triggerSimulatedBreach() {
+      const frame = {
+        camera_id: "CAM-01",
+        timestamp: new Date().toISOString(),
+        frame_ref: "sim_breach_" + Date.now() + ".jpg",
+        frame_quality: {
+          low_light: false,
+          enhanced: false,
+          tamper_signal: { is_tampered: false, laplacian_variance: 520 }
+        },
+        entities: [{
+          track_id: "intruder-" + Math.floor(Math.random() * 9000 + 1000),
+          entity_type: "human",
+          bbox: [150, 100, 320, 420],
+          confidence: 0.94,
+          attributes: {
+            upper_color: "red",
+            lower_color: "black",
+            posture: "crouching",
+            gender: "male",
+            props: ["weapon"]
+          },
+          location: { lat: 29.9458, lon: 78.1643 }
+        }]
+      };
+
+      await fetch('/api/entities/ingest', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(frame)
+      });
+
+      fetchAlerts();
+    }
+
+    function connectWebSocket() {
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${wsProtocol}//${window.location.host}/ws/alerts`;
+      const socket = new WebSocket(wsUrl);
+
+      socket.onopen = () => console.log("Connected to TRINETRA live alert WebSocket");
+      socket.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        if (msg.type === "NEW_ALERT") {
+          fetchAlerts();
+        }
+      };
+      socket.onclose = () => setTimeout(connectWebSocket, 3000);
+    }
+
+    window.onload = async () => {
+      await login();
+      loadCameras();
+      fetchAlerts();
+      connectWebSocket();
+    };
+  </script>
+</body>
+</html>
