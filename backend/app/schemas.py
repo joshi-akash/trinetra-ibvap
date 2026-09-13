@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -216,7 +216,7 @@ class DetectedEntityOut(BaseModel):
     entity_type: str
     bbox: List[int]
     confidence: float
-    track_id: Optional[int] = None
+    track_id: Optional[Union[int, str]] = None
     attributes: Dict[str, Any] = Field(default_factory=dict)
 
 class FrameDetectResponse(BaseModel):
