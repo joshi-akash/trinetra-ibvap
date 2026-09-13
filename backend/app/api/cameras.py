@@ -309,11 +309,19 @@ def detect_camera_frame(
         if not isinstance(attrs, dict):
             attrs = {}
 
+        raw_tid = ent.get("track_id")
+        tid_val = None
+        if raw_tid is not None:
+            try:
+                tid_val = int(raw_tid)
+            except (ValueError, TypeError):
+                tid_val = str(raw_tid)
+
         detected_out.append(DetectedEntityOut(
             entity_type=ent.get("entity_type", "unknown"),
             bbox=bbox,
             confidence=round(float(ent.get("confidence", 0.85)), 2),
-            track_id=ent.get("track_id"),
+            track_id=tid_val,
             attributes=attrs
         ))
 
