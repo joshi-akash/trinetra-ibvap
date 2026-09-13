@@ -18,6 +18,7 @@ import logging
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
+import cv2
 
 from .anpr.plate_detector import PlateDetector
 from .anpr.plate_ocr import PlateOCR
@@ -108,8 +109,24 @@ def run_detection_stage(
     # Initialize height estimator if calibration data provided
     height_estimator = PerspectiveHeightEstimator(calibration_data) if calibration_data else None
 
+    # Step 0: Tactical Low-Light & Zero-Lux Enhancement
+    # If the frame has low luminance (< 55) or is_low_light is flagged,
+    # enhance the frame before detection so YOLO, FRS, and ANPR detect entities in dimmest light.
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if (len(frame.shape) == 3 and frame.shape[2] == 3) else frame
+    mean_lum = float(np.mean(gray))
+    if is_low_light or mean_lum < 55.0:
+        try:
+            from ai_behavior.night_enhancement.zero_dce import ZeroDCE
+            _zero_dce = ZeroDCE()
+            enhanced_frame, was_enhanced = _zero_dce.enhance(frame)
+            processing_frame = enhanced_frame if was_enhanced else frame
+        except Exception:
+            processing_frame = frame
+    else:
+        processing_frame = frame
+
     # Step 1: Detect and track entities
-    detected_entities: List[DetectedEntity] = det.detect_and_track(frame)
+    detected_entities: List[DetectedEntity] = det.detect_and_track(processing_frame)
     output_entities: List[Dict[str, Any]] = []
 
     for entity in detected_entities:

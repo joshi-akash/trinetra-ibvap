@@ -110,19 +110,55 @@ async def upload_camera_footage(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    import re
     camera = db.query(CameraRegistry).filter(CameraRegistry.camera_id == camera_id).first()
     if not camera:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera not found")
+        # Auto-register camera if user uploads to a new camera ID
+        camera = CameraRegistry(
+            camera_id=camera_id,
+            location_lat=29.9457,
+            location_lon=78.1642,
+            status="online",
+            trust_score=0.98,
+            stream_url=None
+        )
+        db.add(camera)
 
     footage_dir = PROJECT_ROOT / "test_footage"
     footage_dir.mkdir(parents=True, exist_ok=True)
-    dest_file = footage_dir / file.filename
+    
+    raw_filename = file.filename or f"upload_{camera_id}.mp4"
+    safe_filename = re.sub(r'[^a-zA-Z0-9_.-]', '_', raw_filename)
+    dest_file = footage_dir / safe_filename
     with open(dest_file, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    camera.stream_url = f"/footage/{file.filename}"
+    # Ensure browser-ready H.264 playback via imageio_ffmpeg if available
+    final_filename = safe_filename
+    try:
+        import subprocess, imageio_ffmpeg
+        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        base_name = Path(safe_filename).stem
+        web_filename = f"{base_name}_web.mp4"
+        web_file = footage_dir / web_filename
+        cmd = [
+            ffmpeg_exe, "-y", "-i", str(dest_file),
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "ultrafast",
+            "-movflags", "+faststart",
+            str(web_file)
+        ]
+        res = subprocess.run(cmd, capture_output=True, timeout=30)
+        if res.returncode == 0 and web_file.exists() and web_file.stat().st_size > 0:
+            final_filename = web_filename
+    except Exception:
+        final_filename = safe_filename
+
+    camera.stream_url = f"/footage/{final_filename}"
     db.commit()
-    return GenericStatusResponse(status="success", message=f"Uploaded {file.filename} and bound to {camera_id}")
+    return GenericStatusResponse(
+        status="success", 
+        message=f"Uploaded {file.filename} and bound to {camera_id} (/footage/{final_filename})"
+    )
 
 @router.post("/{camera_id}/calibrate", response_model=GenericStatusResponse)
 def calibrate_camera(
