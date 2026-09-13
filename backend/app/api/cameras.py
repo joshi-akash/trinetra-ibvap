@@ -467,6 +467,14 @@ def detect_camera_frame(
             rule_fired = f"suspect_face_match: {face_name}"
             threat_score = 0.92
 
+        # Ensure active threat alerts require adequate detection confidence (conf >= 0.50)
+        # Prevents false positive alarms on low-confidence ghost detections (e.g. 29% phantom boxes)
+        if is_alert and conf_val < 0.50:
+            is_alert = False
+            alert_type = None
+            rule_fired = None
+            threat_score = 0.10
+
         # 5. Event-Driven Intelligent Database Persistence & Throttling
         # Rules:
         # a) First sighting of a tracked entity -> Log once immediately.

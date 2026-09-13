@@ -184,16 +184,27 @@ async def load_preset_dataset(
     current_user: User = Depends(get_current_user),
 ):
     """Load or generate a curated surveillance dataset ready for model training."""
-    from ai_detection.training.dataset_downloader import CURATED_DATASETS, prepare_starter_surveillance_dataset
+    from ai_detection.training.dataset_downloader import (
+        CURATED_DATASETS,
+        prepare_starter_surveillance_dataset,
+        prepare_cctv_elevated_dataset,
+    )
 
     body = await request.json() if request.headers.get("content-type") == "application/json" else {}
-    preset_id = body.get("preset_id", "starter_surveillance")
+    preset_id = body.get("preset_id", "cctv_elevated_pedestrians")
 
     if preset_id not in CURATED_DATASETS:
         raise HTTPException(status_code=400, detail=f"Unknown dataset preset: {preset_id}")
 
     preset = CURATED_DATASETS[preset_id]
-    if preset_id == "starter_surveillance":
+    if preset_id == "cctv_elevated_pedestrians":
+        res = prepare_cctv_elevated_dataset()
+        return {
+            "status": "success",
+            "message": "Loaded and generated Overhead & Elevated CCTV Pedestrian dataset.",
+            "dataset": res
+        }
+    elif preset_id == "starter_surveillance":
         res = prepare_starter_surveillance_dataset()
         return {
             "status": "success",
