@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 
-from backend.app.config import settings
+from backend.app.config import settings, PROJECT_ROOT
 from backend.app.models import EntityLog, ExportLog, AuditLog, User, CameraRegistry
 
 class ExportService:
@@ -124,7 +124,7 @@ class ExportService:
                         zip_file.write(stream_url, arcname="evidence_clip.mp4")
                         clip_written = True
                     elif stream_url and stream_url.startswith("/footage/"):
-                        local_footage = settings.PROJECT_ROOT / "test_footage" / stream_url.replace("/footage/", "")
+                        local_footage = PROJECT_ROOT / "test_footage" / stream_url.replace("/footage/", "")
                         if local_footage.exists():
                             zip_file.write(str(local_footage), arcname="evidence_clip.mp4")
                             clip_written = True
