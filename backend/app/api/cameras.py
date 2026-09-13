@@ -92,6 +92,24 @@ def delete_camera(
         db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to delete camera: {str(e)}")
 
+
+@router.patch("/{camera_id}/status", response_model=GenericStatusResponse)
+def toggle_camera_status(
+    camera_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    camera = db.query(CameraRegistry).filter(CameraRegistry.camera_id == camera_id).first()
+    if not camera:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera not found")
+    camera.status = "offline" if camera.status == "online" else "online"
+    db.commit()
+    return GenericStatusResponse(
+        status="success",
+        message=f"Camera {camera_id} is now {camera.status.upper()}"
+    )
+
+
 def resolve_live_stream_url(url: Optional[str]) -> Optional[str]:
     """
     Resolves a public webcam webpage (e.g. SkylineWebcams) or page link
