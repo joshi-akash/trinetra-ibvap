@@ -1,4 +1,5 @@
 import io
+from unittest.mock import patch, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -153,3 +154,56 @@ def test_stream_update_presets_and_clearing(client, auth_headers):
     # Verify CAM-NEW-42 exists
     cam_res = client.get("/api/cameras", headers=auth_headers)
     assert any(c["camera_id"] == "CAM-NEW-42" and c["stream_url"] == "/footage/night_patrol.mp4" for c in cam_res.json())
+
+def test_skylinewebcams_and_hls_stream_resolution(client, auth_headers):
+    """Verify resolve_live_stream_url and update_camera_stream for online webcam links."""
+    from backend.app.api.cameras import resolve_live_stream_url
+
+    # 1. Direct streams should remain untouched
+    direct = "https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8"
+    assert resolve_live_stream_url(direct) == direct
+
+    # 2. None / empty strings
+    assert resolve_live_stream_url(None) is None
+    assert resolve_live_stream_url("") is None
+
+    # 3. Test mock resolution of SkylineWebcams URL
+    with patch("urllib.request.urlopen") as mock_urlopen:
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = b"<script>var player=new Clappr.Player({source:'livee.m3u8?a=mocktoken12345'});</script>"
+        mock_resp.__enter__.return_value = mock_resp
+        mock_urlopen.return_value = mock_resp
+
+        page_url = "https://www.skylinewebcams.com/en/webcam/thailand/surat-thani/ko-samui/lamai.html"
+        resolved = resolve_live_stream_url(page_url)
+        assert resolved == "https://hd-auth.skylinewebcams.com/live.m3u8?a=mocktoken12345"
+
+        # Update camera stream with SkylineWebcams URL
+        res = client.put("/api/cameras/CAM-01/stream", json={"stream_url": page_url}, headers=auth_headers)
+        assert res.status_code == 200
+        assert "Live HLS stream auto-resolved" in res.json()["message"]
+
+        # Verify CAM-01 stored resolved URL
+        cam_res = client.get("/api/cameras", headers=auth_headers)
+        c01 = next(c for c in cam_res.json() if c["camera_id"] == "CAM-01")
+        assert c01["stream_url"] == "https://hd-auth.skylinewebcams.com/live.m3u8?a=mocktoken12345"
+
+def test_detect_camera_frame_endpoint(client):
+    """Verify POST /api/cameras/{camera_id}/detect-frame decodes base64 and returns detections."""
+    import base64
+    import numpy as np
+    import cv2
+
+    img = np.zeros((360, 640, 3), dtype=np.uint8)
+    _, buf = cv2.imencode(".jpg", img)
+    b64_str = base64.b64encode(buf).decode("utf-8")
+
+    res = client.post("/api/cameras/CAM-01/detect-frame", json={"image": b64_str, "width": 640, "height": 360})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["camera_id"] == "CAM-01"
+    assert "entities" in data
+    assert data["frame_width"] == 640
+    assert data["frame_height"] == 360
+
+

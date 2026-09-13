@@ -206,3 +206,23 @@ class GenericStatusResponse(BaseModel):
     status: str
     message: str
 
+class FrameDetectRequest(BaseModel):
+    image: str
+    timestamp: Optional[str] = None
+    width: Optional[int] = 640
+    height: Optional[int] = 360
+
+class DetectedEntityOut(BaseModel):
+    entity_type: str
+    bbox: List[int]
+    confidence: float
+    track_id: Optional[int] = None
+    attributes: Dict[str, Any] = Field(default_factory=dict)
+
+class FrameDetectResponse(BaseModel):
+    camera_id: str
+    entities: List[DetectedEntityOut] = Field(default_factory=list)
+    frame_width: int = 640
+    frame_height: int = 360
+
+
