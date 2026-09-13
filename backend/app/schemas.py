@@ -138,6 +138,7 @@ class SearchRequest(BaseModel):
     upper_color: Optional[str] = None
     lower_color: Optional[str] = None
     posture: Optional[str] = None
+    direction: Optional[str] = None
     is_low_light: Optional[bool] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None

@@ -118,25 +118,28 @@ def run_detection_stage(
     height_estimator = PerspectiveHeightEstimator(calibration_data) if calibration_data else None
 
     # Step 0: Tactical Low-Light & Dynamic Contrast Enhancement
-    # If the frame has low luminance (< 60) or is_low_light is flagged, apply Zero-DCE.
+    # If the frame has low luminance (< 85) or is_low_light is flagged, apply adaptive Gamma + Zero-DCE.
     # If the frame has low contrast or medium-dim lighting, apply adaptive CLAHE in LAB space.
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if (len(frame.shape) == 3 and frame.shape[2] == 3) else frame
     mean_lum = float(np.mean(gray))
     std_lum = float(np.std(gray))
 
-    if is_low_light or mean_lum < 60.0:
+    frame_is_dark = is_low_light or mean_lum < 85.0
+    if frame_is_dark:
         try:
             from ai_behavior.night_enhancement.zero_dce import ZeroDCE
             _zero_dce = ZeroDCE()
             enhanced_frame, was_enhanced = _zero_dce.enhance(frame)
             processing_frame = enhanced_frame if was_enhanced else frame
+            if was_enhanced:
+                is_low_light = True
         except Exception:
             processing_frame = frame
-    elif std_lum < 42.0 or mean_lum < 80.0:
+    elif std_lum < 42.0 or mean_lum < 95.0:
         try:
             lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
             l, a, b = cv2.split(lab)
-            clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+            clahe = cv2.createCLAHE(clipLimit=2.8, tileGridSize=(8, 8))
             cl = clahe.apply(l)
             limg = cv2.merge((cl, a, b))
             processing_frame = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
@@ -145,8 +148,11 @@ def run_detection_stage(
     else:
         processing_frame = frame
 
-    # Step 1: Detect and track entities
-    detected_entities: List[DetectedEntity] = det.detect_and_track(processing_frame)
+    # Step 1: Detect and track entities with camera scoping (backward compatible with mocks)
+    try:
+        detected_entities: List[DetectedEntity] = det.detect_and_track(processing_frame, camera_id=camera_id)
+    except TypeError:
+        detected_entities = det.detect_and_track(processing_frame)
     output_entities: List[Dict[str, Any]] = []
 
     for entity in detected_entities:
@@ -168,6 +174,9 @@ def run_detection_stage(
             "skin_tone": None,
             "posture": None,
             "props": list(getattr(entity, "extra_props", [])),
+            "trajectory": list(getattr(entity, "trajectory", [])),
+            "movement_flags": list(getattr(entity, "movement_flags", [])),
+            "is_low_light": is_low_light or (mean_lum < 85.0),
         }
 
         if e_type == "human":
@@ -200,8 +209,13 @@ def run_detection_stage(
             else:
                 attributes["face_name"] = "Unidentified"
 
-            attributes["direction"] = getattr(entity, "direction", None) or "North"
-            attributes["speed_kmh"] = getattr(entity, "speed_kmh", None) or 4.2
+            if getattr(entity, "direction", None):
+                attributes["direction"] = entity.direction
+            elif not attributes.get("direction"):
+                attributes["direction"] = "North (Advancing)"
+
+            if getattr(entity, "speed_kmh", None) is not None:
+                attributes["speed_kmh"] = entity.speed_kmh
             attributes["plate_text"] = None
 
         elif e_type == "vehicle":
@@ -217,8 +231,13 @@ def run_detection_stage(
             attributes["vehicle_color"] = v_col
 
             # Direction & Speed
-            attributes["direction"] = getattr(entity, "direction", None) or "North-East"
-            attributes["speed_kmh"] = getattr(entity, "speed_kmh", None) or 38.5
+            if getattr(entity, "direction", None):
+                attributes["direction"] = entity.direction
+            elif not attributes.get("direction"):
+                attributes["direction"] = "East (Moving Right)"
+
+            if getattr(entity, "speed_kmh", None) is not None:
+                attributes["speed_kmh"] = entity.speed_kmh
 
             # Extract plate crop and perform OCR
             plate_crop = p_det.detect_plate_crop(crop)

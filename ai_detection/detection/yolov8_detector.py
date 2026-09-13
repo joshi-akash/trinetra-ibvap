@@ -88,6 +88,8 @@ class DetectedEntity:
     speed_kmh: Optional[float] = None
     posture: Optional[str] = None
     extra_props: List[str] = field(default_factory=list)
+    trajectory: List[List[float]] = field(default_factory=list)
+    movement_flags: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to basic dictionary structure."""
@@ -305,13 +307,19 @@ class YOLOv8Detector:
         frame: np.ndarray,
         conf_override: Optional[float] = None,
         persist: bool = True,
+        camera_id: Optional[str] = None,
     ) -> List[DetectedEntity]:
         """
         Convenience wrapper detecting objects and associating tracks via ByteTracker.
+        Maintains camera-scoped trackers so separate camera streams track entities independently.
         """
         from .tracker import ByteTracker
-        if not hasattr(self, "_tracker") or self._tracker is None:
-            self._tracker = ByteTracker()
+        if not hasattr(self, "_camera_trackers"):
+            self._camera_trackers = {}
+
+        cam_key = camera_id or "default"
+        if cam_key not in self._camera_trackers:
+            self._camera_trackers[cam_key] = ByteTracker()
 
         raw_detections = self.detect(frame, conf_override=conf_override)
-        return self._tracker.update(raw_detections, frame=frame)
+        return self._camera_trackers[cam_key].update(raw_detections, frame=frame, camera_id=cam_key)

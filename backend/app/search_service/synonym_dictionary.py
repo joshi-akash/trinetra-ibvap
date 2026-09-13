@@ -19,27 +19,50 @@ class SynonymDictionary:
         "grey": ["grey", "gray", "dhusar", "धूसर", "slate"]
     }
 
-
     ENTITY_MAP = {
-        "human": ["human", "person", "man", "woman", "guy", "boy", "girl", "aadmi", "admi", "आदमी", "insan", "इंसान", "banda", "बंदा", "vyakti", "व्यक्ति"],
-        "vehicle": ["vehicle", "car", "truck", "bike", "motorcycle", "gaadi", "gadi", "गाड़ी", "vahan", "वाहन", "jeep", "suv"],
-        "animal": ["animal", "dog", "cow", "horse", "jaanwar", "janwar", "जानवर", "pashu", "पशु", "kutta", "गाय"]
+        "human": ["human", "person", "man", "woman", "guy", "boy", "girl", "aadmi", "admi", "आदमी", "insan", "इंसान", "banda", "बंदा", "vyakti", "व्यक्ति", "aurat", "औरत", "pedestrian", "individual"],
+        "vehicle": ["vehicle", "car", "truck", "bike", "motorcycle", "gaadi", "gadi", "गाड़ी", "vahan", "वाहन", "jeep", "suv", "bus", "van", "auto", "rickshaw", "tempo"],
+        "animal": ["animal", "dog", "cow", "horse", "jaanwar", "janwar", "जानवर", "pashu", "पशु", "kutta", "कुत्ता", "गाय", "bull"]
     }
 
     POSTURE_MAP = {
-        "crouching": ["crouching", "crouch", "jhuka", "jhuk", "झुका", "squatting"],
-        "sprinting": ["sprinting", "running", "bhaag", "bhagta", "भागता", "daud", "दौड़"],
-        "prone": ["prone", "crawling", "rengna", "रेंगना", "lying down"]
+        "standing": ["standing", "stand", "khada", "khadi", "खड़ा", "खड़ी", "upright"],
+        "crouching": ["crouching", "crouch", "jhuka", "jhuk", "झुका", "squatting", "squat", "sitting", "baitha", "बैठा"],
+        "sprinting": ["sprinting", "sprint", "running", "run", "bhaag", "bhagta", "भागता", "daud", "दौड़", "fast", "tez", "तेज़", "rapid"],
+        "prone": ["prone", "crawling", "crawl", "rengna", "रेंगना", "lying", "soya", "creeping", "stealth"]
+    }
+
+    DIRECTION_MAP = {
+        "West": ["west", "left", "bayen", "baayein", "बायें", "बाएं", "paschim", "पश्चिम"],
+        "East": ["east", "right", "dayen", "daayein", "दायें", "दाएं", "purva", "पूर्व"],
+        "North": ["north", "up", "retreating", "away", "peeche", "पीछे", "uttar", "उत्तर"],
+        "South": ["south", "down", "advancing", "coming", "forward", "aage", "आगे", "dakshin", "दक्षिण"],
+        "North-West": ["northwest", "north-west"],
+        "North-East": ["northeast", "north-east"],
+        "South-West": ["southwest", "south-west"],
+        "South-East": ["southeast", "south-east"],
+        "Stationary": ["stationary", "loitering", "idle", "still", "ruka", "रुका", "khada_hua"]
     }
 
     LOW_LIGHT_MAP = {
-        True: ["andhera", "andhere", "अंधेरा", "अंधेरे", "dark", "darkness", "low_light", "lowlight", "kam_roshni", "roshni_kam", "dim"]
+        True: ["andhera", "andhere", "अंधेरा", "अंधेरे", "dark", "darkness", "low_light", "lowlight", "kam_roshni", "roshni_kam", "dim", "night", "raat", "रात"]
     }
 
     PROP_MAP = {
-        "weapon": ["weapon", "hathiyar", "hathyar", "हथियार", "bandook", "gun", "rifle", "arms"],
-        "covered_face": ["covered_face", "naqab", "nakab", "नकाब", "mask", "mukhota"],
-        "large_backpack": ["large_backpack", "backpack", "bag", "jhola", "thaila", "बैग"]
+        "weapon": [
+            "weapon", "hathiyar", "hathyar", "हथियार", "bandook", "बंदूक", "gun", "rifle",
+            "arms", "knife", "chaku", "चाकू", "chhuri", "dagger", "sword", "pistol",
+            "tamancha", "katta", "desi_katta", "revolver", "firearm", "ammunition"
+        ],
+        "covered_face": ["covered_face", "naqab", "nakab", "नकाब", "mask", "mukhota", "मुखौटा"],
+        "large_backpack": [
+            "large_backpack", "backpack", "bag", "बैग", "jhola", "झोला", "thaila", "थैला",
+            "suitcase", "briefcase", "luggage", "duffel", "petticase", "sack", "bori"
+        ]
+    }
+
+    ALERT_MAP = {
+        True: ["alert", "breach", "threat", "danger", "khatra", "खतरा", "ghuspeth", "घुसपैठ", "suspect", "infiltrator", "violator"]
     }
 
     def __init__(self):
@@ -59,6 +82,11 @@ class SynonymDictionary:
             for s in syns:
                 self.inverted_postures[s.lower()] = canonical
 
+        self.inverted_directions = {}
+        for canonical, syns in self.DIRECTION_MAP.items():
+            for s in syns:
+                self.inverted_directions[s.lower()] = canonical
+
         self.inverted_low_light = {}
         for canonical, syns in self.LOW_LIGHT_MAP.items():
             for s in syns:
@@ -69,18 +97,35 @@ class SynonymDictionary:
             for s in syns:
                 self.inverted_props[s.lower()] = canonical
 
+        self.inverted_alerts = {}
+        for canonical, syns in self.ALERT_MAP.items():
+            for s in syns:
+                self.inverted_alerts[s.lower()] = canonical
+
     def parse_query(self, query_text: Optional[str]) -> Dict[str, Any]:
         """
         Extracts structured filters from raw query text.
         Returns:
             resolved_terms: dict of canonical attributes
-            unresolved_terms: list of unrecognized words
+            unresolved_terms: list of unrecognized words for broad-spectrum matching
         """
         if not query_text:
             return {"resolved": {}, "unresolved": []}
 
+        # Multi-word normalizations
+        normalized = query_text.lower()
+        normalized = re.sub(r'\bmoving\s+left\b', 'left', normalized)
+        normalized = re.sub(r'\bmoving\s+right\b', 'right', normalized)
+        normalized = re.sub(r'\bheading\s+west\b', 'west', normalized)
+        normalized = re.sub(r'\bheading\s+east\b', 'east', normalized)
+        normalized = re.sub(r'\bheading\s+north\b', 'north', normalized)
+        normalized = re.sub(r'\bheading\s+south\b', 'south', normalized)
+        normalized = re.sub(r'\blow\s+light\b', 'low_light', normalized)
+        normalized = re.sub(r'\bdesi\s+katta\b', 'tamancha', normalized)
+        normalized = re.sub(r'\blying\s+down\b', 'prone', normalized)
+
         # Normalize tokens
-        tokens = re.findall(r'[\w]+', query_text.lower())
+        tokens = re.findall(r'[\w\-]+', normalized)
         resolved = {}
         unresolved = []
 
@@ -107,25 +152,37 @@ class SynonymDictionary:
                 i += 1
                 continue
 
-            # 4. Low-Light / Darkness
+            # 4. Directions (West, East, North, South, etc.)
+            if token in self.inverted_directions:
+                resolved["direction"] = self.inverted_directions[token]
+                i += 1
+                continue
+
+            # 5. Low-Light / Darkness
             if token in self.inverted_low_light:
                 resolved["is_low_light"] = True
                 i += 1
                 continue
 
-            # 5. Threat Props
+            # 6. Threat Props (weapon, knife, gun, backpack, etc.)
             if token in self.inverted_props:
                 resolved["prop"] = self.inverted_props[token]
                 i += 1
                 continue
 
-            # 6. License Plate pattern (e.g. DL01AB1234 or HR26DQ5555)
+            # 7. Alert / Breach indicators
+            if token in self.inverted_alerts:
+                resolved["alert_only"] = True
+                i += 1
+                continue
+
+            # 8. License Plate pattern (e.g. DL01AB1234 or HR26DQ5555)
             if re.match(r'^[a-z]{2}[0-9]{1,2}[a-z]{0,3}[0-9]{4}$', token):
                 resolved["plate_text"] = token.upper()
                 i += 1
                 continue
 
-            # 7. Relative Time Indicators (kal, aaj, subah, shaam, raat)
+            # 9. Relative Time Indicators (kal, aaj, subah, shaam, raat)
             if token in ["kal", "कल", "yesterday"]:
                 yesterday = now - timedelta(days=1)
                 resolved["time_start"] = yesterday.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -140,7 +197,6 @@ class SynonymDictionary:
                 continue
 
             if token in ["subah", "सुबह", "morning"]:
-                # Morning: 05:00 to 11:59
                 base_day = resolved.get("time_start", now)
                 resolved["time_start"] = base_day.replace(hour=5, minute=0, second=0, microsecond=0)
                 resolved["time_end"] = base_day.replace(hour=11, minute=59, second=59, microsecond=0)
@@ -148,7 +204,6 @@ class SynonymDictionary:
                 continue
 
             if token in ["shaam", "शाम", "evening"]:
-                # Evening: 17:00 to 20:59
                 base_day = resolved.get("time_start", now)
                 resolved["time_start"] = base_day.replace(hour=17, minute=0, second=0, microsecond=0)
                 resolved["time_end"] = base_day.replace(hour=20, minute=59, second=59, microsecond=0)
@@ -156,7 +211,6 @@ class SynonymDictionary:
                 continue
 
             if token in ["raat", "रात", "night"]:
-                # Night: 21:00 to 04:59 (and implies low-light condition)
                 base_day = resolved.get("time_start", now)
                 resolved["time_start"] = base_day.replace(hour=21, minute=0, second=0, microsecond=0)
                 resolved["time_end"] = base_day + timedelta(days=1)
@@ -165,8 +219,13 @@ class SynonymDictionary:
                 i += 1
                 continue
 
-            # Common stop words
-            if token in ["wala", "wali", "wale", "tha", "thi", "koi", "in", "the", "a", "is", "of", "and", "mein"]:
+            # Common stop words & clothing carrier nouns
+            if token in [
+                "wala", "wali", "wale", "tha", "thi", "koi", "in", "the", "a", "is", "of", "and", "mein",
+                "with", "near", "towards", "at", "by", "to", "shirt", "tshirt", "t-shirt", "pant", "pants",
+                "jeans", "kurta", "pajama", "kapda", "kapde", "clothes", "clothing", "dress", "wearing",
+                "pehne", "pehna"
+            ]:
                 i += 1
                 continue
 

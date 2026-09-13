@@ -53,13 +53,19 @@ class QueryTranslator:
         if prop:
             conditions.append(EntityLog.rule_fired.ilike(f"%{prop}%"))
 
+        # Direction filter (e.g. West, East, North, South, Moving Left, etc.)
+        direction = request.direction or resolved.get("direction")
+        if direction:
+            conditions.append(EntityLog.direction.ilike(f"%{direction}%"))
+
         # Camera ID
         if request.camera_id:
             conditions.append(EntityLog.camera_id == request.camera_id)
 
         # Alert only filter
-        if request.alert_only is not None:
-            conditions.append(EntityLog.is_alert == request.alert_only)
+        alert_only = request.alert_only if request.alert_only is not None else resolved.get("alert_only")
+        if alert_only is not None:
+            conditions.append(EntityLog.is_alert == alert_only)
 
         # Time range
         start_time = request.start_time or resolved.get("time_start")
@@ -70,10 +76,45 @@ class QueryTranslator:
         if end_time:
             conditions.append(EntityLog.timestamp <= end_time)
 
-        # 3. Query Execution
+        # 3. Broad fallback filter for unrecognized / free-text keywords
+        unresolved = parsed.get("unresolved", [])
+        if unresolved:
+            has_primary_filters = bool(
+                request.entity_type or resolved.get("entity_type") or
+                request.upper_color or resolved.get("color") or
+                request.posture or resolved.get("posture") or
+                request.direction or resolved.get("direction") or
+                resolved.get("prop") or resolved.get("plate_text")
+            )
+            unresolved_filters = []
+            for u_tok in unresolved:
+                term = f"%{u_tok}%"
+                unresolved_filters.append(
+                    or_(
+                        EntityLog.camera_id.ilike(term),
+                        EntityLog.plate_text.ilike(term),
+                        EntityLog.face_name.ilike(term),
+                        EntityLog.rule_fired.ilike(term),
+                        EntityLog.vehicle_type.ilike(term),
+                        EntityLog.posture.ilike(term),
+                        EntityLog.direction.ilike(term),
+                        EntityLog.upper_color.ilike(term),
+                        EntityLog.lower_color.ilike(term),
+                        EntityLog.entity_type.ilike(term),
+                        EntityLog.id.ilike(term),
+                    )
+                )
+            if unresolved_filters:
+                if not has_primary_filters:
+                    conditions.append(and_(*unresolved_filters))
+                else:
+                    conditions.append(or_(*unresolved_filters))
+
+        # 4. Query Execution
         query = db.query(EntityLog).filter(*conditions).order_by(desc(EntityLog.timestamp))
         total_count = query.count()
-        results = query.offset(request.offset).limit(request.limit).all()
+        fetch_limit = min(max(request.limit, 1), 500)
+        results = query.offset(request.offset).limit(fetch_limit).all()
 
         return results, total_count, parsed
 

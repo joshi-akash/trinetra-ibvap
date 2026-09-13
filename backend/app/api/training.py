@@ -166,3 +166,44 @@ def apply_custom_weights(
         status="success",
         message="Active YOLOv8 detection model hot-reloaded successfully with custom weights.",
     )
+
+
+@router.get("/curated-datasets")
+def get_curated_datasets(current_user: User = Depends(get_current_user)):
+    """Retrieve list of pre-configured and benchmark surveillance datasets."""
+    from ai_detection.training.dataset_downloader import CURATED_DATASETS
+    return {
+        "status": "success",
+        "datasets": list(CURATED_DATASETS.values())
+    }
+
+
+@router.post("/load-preset-dataset")
+async def load_preset_dataset(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    """Load or generate a curated surveillance dataset ready for model training."""
+    from ai_detection.training.dataset_downloader import CURATED_DATASETS, prepare_starter_surveillance_dataset
+
+    body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+    preset_id = body.get("preset_id", "starter_surveillance")
+
+    if preset_id not in CURATED_DATASETS:
+        raise HTTPException(status_code=400, detail=f"Unknown dataset preset: {preset_id}")
+
+    preset = CURATED_DATASETS[preset_id]
+    if preset_id == "starter_surveillance":
+        res = prepare_starter_surveillance_dataset()
+        return {
+            "status": "success",
+            "message": "Loaded and verified TRINETRA starter surveillance dataset.",
+            "dataset": res
+        }
+    else:
+        return {
+            "status": "info",
+            "message": f"Dataset '{preset['name']}' requires external download from {preset.get('source', '')}. Use dataset_downloader CLI or configure Roboflow/Kaggle credentials.",
+            "dataset": preset
+        }
+

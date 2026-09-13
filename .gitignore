@@ -32,6 +32,9 @@ models/*.pt
 models/*.pth
 models/*.onnx
 models/*.tflite
+*.pt
+backend/*.pt
+data/
 
 # Test footage (large video files)
 test_footage/*.mp4
