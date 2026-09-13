@@ -645,17 +645,17 @@
         <div>
           <label style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:6px;">Or Quick-Select Tactical Presets</label>
           <div style="display:flex; flex-direction:column; gap:6px;">
-            <button class="btn" style="justify-content:flex-start; text-align:left;" onclick="setStreamPreset('/footage/highway_patrol.mp4')">
+            <button class="btn" style="justify-content:flex-start; text-align:left;" onclick="applyStreamPresetDirect('/footage/highway_patrol.mp4')">
               🛣️ Preset 1: Highway ANPR & High-Speed Corridor Feed (Local H.264)
             </button>
-            <button class="btn" style="justify-content:flex-start; text-align:left;" onclick="setStreamPreset('/footage/cctv_sample.mp4')">
+            <button class="btn" style="justify-content:flex-start; text-align:left;" onclick="applyStreamPresetDirect('/footage/cctv_sample.mp4')">
               🛡️ Preset 2: Sector Alpha Border Outpost CCTV (Local H.264)
             </button>
-            <button class="btn" style="justify-content:flex-start; text-align:left;" onclick="setStreamPreset('/footage/night_patrol.mp4')">
+            <button class="btn" style="justify-content:flex-start; text-align:left;" onclick="applyStreamPresetDirect('/footage/night_patrol.mp4')">
               🌙 Preset 3: Tactical Zero-Light & Night-Vision Perimeter Feed (Local H.264)
             </button>
-            <button class="btn" style="justify-content:flex-start; text-align:left;" onclick="setStreamPreset('')">
-              📡 Preset 4: Tactical Canvas Radar & AI Telemetry Simulator (Vector Engine)
+            <button class="btn" style="justify-content:flex-start; text-align:left;" onclick="applyStreamPresetDirect('')">
+              📡 Preset 4: Dynamic Canvas Radar & Telemetry Simulator (Vector Engine)
             </button>
           </div>
         </div>
@@ -1063,9 +1063,11 @@
 
     // --- 6. Stream Configuration Modal Handlers ---
     function openStreamModal(camId, currentUrl) {
-      activeStreamModalCamId = camId;
-      document.getElementById('stream-modal-cam-id').value = camId;
-      document.getElementById('stream-modal-url').value = currentUrl || "";
+      activeStreamModalCamId = (camId || "CAM-01").trim();
+      const idInput = document.getElementById('stream-modal-cam-id');
+      if (idInput) idInput.value = activeStreamModalCamId;
+      const urlInput = document.getElementById('stream-modal-url');
+      if (urlInput) urlInput.value = currentUrl || "";
       document.getElementById('stream-modal').style.display = 'flex';
     }
 
@@ -1074,24 +1076,52 @@
     }
 
     function setStreamPreset(presetUrl) {
-      document.getElementById('stream-modal-url').value = presetUrl;
+      const input = document.getElementById('stream-modal-url');
+      if (input) input.value = presetUrl;
+    }
+
+    async function applyStreamPresetDirect(presetUrl) {
+      setStreamPreset(presetUrl);
+      await saveStreamModal();
     }
 
     async function saveStreamModal() {
-      const url = document.getElementById('stream-modal-url').value.trim();
+      const camIdInput = document.getElementById('stream-modal-cam-id');
+      const camId = (activeStreamModalCamId || (camIdInput ? camIdInput.value : "") || "CAM-01").trim();
+      const urlInput = document.getElementById('stream-modal-url');
+      const url = urlInput ? urlInput.value.trim() : "";
+
       if (!token) await login();
-      const res = await fetch(`/api/cameras/${activeStreamModalCamId}/stream`, {
-        method: 'PUT',
-        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stream_url: url })
-      });
-      if (res.ok) {
-        alert(`✅ Feed updated for ${activeStreamModalCamId}`);
-        closeStreamModal();
-        loadCameraMatrix();
-        loadCameraFleet();
-      } else {
-        alert("❌ Failed to update stream URL");
+
+      try {
+        let res = await fetch(`/api/cameras/${encodeURIComponent(camId)}/stream`, {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stream_url: url })
+        });
+
+        if (res.status === 401) {
+          // Token expired, re-login and retry
+          await login();
+          res = await fetch(`/api/cameras/${encodeURIComponent(camId)}/stream`, {
+            method: 'PUT',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stream_url: url })
+          });
+        }
+
+        if (res.ok) {
+          const data = await res.json();
+          alert(`✅ Feed updated for ${camId}`);
+          closeStreamModal();
+          await loadCameraFleet();
+          await loadCameraMatrix();
+        } else {
+          const errData = await res.json().catch(() => ({ detail: res.statusText }));
+          alert(`❌ Failed to update stream URL: ${errData.detail || errData.message || res.statusText}`);
+        }
+      } catch (e) {
+        alert(`❌ Network or server error: ${e.message}`);
       }
     }
 
