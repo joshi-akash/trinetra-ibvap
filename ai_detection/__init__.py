@@ -70,6 +70,14 @@ def get_stage_components(
     }
 
 
+def reload_detector(model_path: str = "models/yolov8_custom.pt") -> YOLOv8Detector:
+    """Hot-reload YOLOv8 detector singleton with fine-tuned or custom weights."""
+    global _DETECTOR_INSTANCE
+    logger.info("Hot-reloading YOLOv8 detector with model: %s", model_path)
+    _DETECTOR_INSTANCE = YOLOv8Detector(model_path=model_path)
+    return _DETECTOR_INSTANCE
+
+
 def run_detection_stage(
     frame: np.ndarray,
     camera_id: str,

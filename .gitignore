@@ -48,6 +48,8 @@ backend/storage/exports/*
 backend/storage/ring_buffer/*
 !backend/storage/ring_buffer/.gitkeep
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
 
@@ -70,6 +72,6 @@ Thumbs.db
 # Local working artifacts
 brain.md
 files/
-
-*.db-shm
-*.db-wal
+uploads/
+runs/
+data/custom_dataset/

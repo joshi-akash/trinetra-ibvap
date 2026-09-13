@@ -225,4 +225,29 @@ class FrameDetectResponse(BaseModel):
     frame_width: int = 640
     frame_height: int = 360
 
+# --- Continuous Model Training Schemas ---
+class TrainingStartRequest(BaseModel):
+    stream_url: Optional[str] = None
+    epochs: int = 3
+    max_frames: int = 40
+    base_weights: str = "models/yolov8n.pt"
+    enhance_low_light: bool = True
+
+class TrainingStatusResponse(BaseModel):
+    status: str
+    progress: float
+    current_epoch: int
+    total_epochs: int
+    total_frames: int
+    annotated_boxes: int
+    box_loss: float
+    cls_loss: float
+    weights_path: Optional[str] = None
+    error: Optional[str] = None
+    logs: List[str] = Field(default_factory=list)
+    duration_seconds: float = 0.0
+
+class ApplyWeightsRequest(BaseModel):
+    weights_path: Optional[str] = None
+
 
