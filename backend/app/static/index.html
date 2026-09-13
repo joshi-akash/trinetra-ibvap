@@ -51,6 +51,7 @@
     }
     .pill-offline { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
     .pill-siren { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid var(--accent-red); display: none; }
+    .pill-info { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); border: 1px solid rgba(6, 182, 212, 0.4); }
     
     .header-controls { display: flex; gap: 10px; align-items: center; }
     .btn {
@@ -60,7 +61,7 @@
       padding: 7px 14px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       font-weight: 600;
       display: inline-flex;
       align-items: center;
@@ -94,42 +95,67 @@
 
     /* Left Sidebar */
     nav {
-      width: 240px;
+      width: 250px;
       background: var(--panel-bg);
       border-right: 1px solid var(--border-color);
       display: flex;
       flex-direction: column;
-      padding: 16px 10px;
+      padding: 16px 12px;
       gap: 6px;
+      z-index: 10;
     }
-    .nav-header { font-size: 0.7rem; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase; padding: 6px 10px; }
-    .nav-btn {
-      padding: 11px 14px;
-      border-radius: 6px;
+    .nav-header {
+      font-size: 0.7rem;
+      text-transform: uppercase;
       color: var(--text-muted);
-      cursor: pointer;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 6px 12px;
+    }
+    .nav-btn {
       display: flex;
       align-items: center;
-      gap: 12px;
-      font-size: 0.88rem;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-radius: 6px;
+      color: var(--text-muted);
+      background: transparent;
+      border: 1px solid transparent;
+      font-size: 0.85rem;
       font-weight: 600;
-      transition: all 0.15s;
+      cursor: pointer;
+      transition: all 0.2s;
     }
-    .nav-btn:hover { background: var(--card-bg); color: #fff; }
+    .nav-btn:hover { background: var(--card-bg); color: var(--text-main); }
     .nav-btn.active {
-      background: linear-gradient(90deg, rgba(6, 182, 212, 0.15), rgba(6, 182, 212, 0.02));
-      color: #38bdf8;
-      border-left: 3px solid var(--accent-cyan);
+      background: var(--card-bg);
+      border-color: var(--accent-cyan);
+      color: #fff;
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.2);
     }
-    .nav-badge { margin-left: auto; font-size: 0.7rem; padding: 2px 7px; border-radius: 10px; font-weight: 800; }
+    .nav-badge {
+      background: var(--border-color);
+      color: var(--text-main);
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
 
-    /* Main Content */
-    main { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; }
-    .tab-view { display: none; flex-direction: column; gap: 16px; flex: 1; }
-    .tab-view.active { display: flex; }
+    /* Main Workspace */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      background-color: var(--bg-dark);
+      padding: 20px 24px;
+      gap: 16px;
+    }
 
-    /* Stat Banner */
-    .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 8px; }
+    /* Stat Cards */
+    .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
     .stat-card {
       background: var(--panel-bg);
       border: 1px solid var(--border-color);
@@ -139,16 +165,25 @@
       flex-direction: column;
       gap: 4px;
     }
-    .stat-title { font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-family: var(--font-mono); }
-    .stat-val { font-size: 1.5rem; font-weight: 800; color: #fff; }
+    .stat-title { font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-val { font-size: 1.5rem; font-weight: 900; font-family: var(--font-mono); color: var(--text-main); }
 
-    /* Live Camera Matrix */
-    .camera-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    /* Tab Views */
+    .tab-view { display: none; flex-direction: column; gap: 16px; flex: 1; }
+    .tab-view.active { display: flex; }
+
+    /* Tactical Live Camera Grid */
+    .camera-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      flex: 1;
+    }
     .cam-tile {
-      background: #0b111c;
+      background: #000;
       border: 1px solid var(--border-color);
       border-radius: 8px;
-      height: 270px;
+      height: 290px;
       position: relative;
       overflow: hidden;
       display: flex;
@@ -168,38 +203,78 @@
       top: 8px; left: 10px; right: 10px;
       display: flex; justify-content: space-between; align-items: center;
       z-index: 10;
+      background: rgba(0,0,0,0.65);
+      padding: 4px 8px;
+      border-radius: 4px;
+      backdrop-filter: blur(4px);
     }
     .cam-id { font-weight: 800; font-size: 0.85rem; letter-spacing: 0.5px; font-family: var(--font-mono); }
-    .cam-metrics { font-size: 0.75rem; display: flex; align-items: center; gap: 8px; }
+    .cam-metrics { font-size: 0.72rem; display: flex; align-items: center; gap: 8px; }
     .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
 
-    /* Simulated Bounding Box */
+    .cam-video {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      z-index: 1;
+    }
+    .cam-radar-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: radial-gradient(circle at center, #0e1a2f 0%, #05080e 100%);
+      z-index: 1;
+    }
+
+    /* Tactical Bounding Box HUDs */
     .bounding-box {
       position: absolute;
       border: 2px solid #22c55e;
-      border-radius: 3px;
-      box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
+      border-radius: 4px;
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       padding: 4px;
       pointer-events: none;
+      z-index: 5;
     }
     .bounding-box.threat {
       border-color: var(--accent-red);
-      box-shadow: 0 0 12px rgba(239, 68, 68, 0.6);
+      box-shadow: 0 0 16px rgba(239, 68, 68, 0.7);
+      animation: alertPulse 0.8s infinite alternate;
+    }
+    .bounding-box.vehicle {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 12px rgba(6, 182, 212, 0.5);
     }
     .bbox-tag {
       font-size: 0.65rem;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.85);
       color: #22c55e;
-      padding: 2px 4px;
-      border-radius: 2px;
+      padding: 2px 6px;
+      border-radius: 3px;
       font-family: var(--font-mono);
       font-weight: bold;
       width: fit-content;
+      white-space: nowrap;
     }
-    .bbox-tag.threat { color: #f87171; }
+    .bbox-tag.threat { color: #f87171; background: rgba(127, 29, 29, 0.9); }
+    .bbox-tag.vehicle { color: #38bdf8; background: rgba(12, 74, 110, 0.9); }
+    .bbox-meta {
+      font-size: 0.62rem;
+      background: rgba(0, 0, 0, 0.8);
+      color: #e2e8f0;
+      padding: 2px 5px;
+      border-radius: 2px;
+      font-family: var(--font-mono);
+      margin-top: auto;
+      white-space: nowrap;
+    }
 
     /* Log Tabs & Filter Bar */
     .filter-bar {
@@ -208,19 +283,19 @@
       border-radius: 8px;
       padding: 12px 16px;
       display: flex;
-      gap: 12px;
+      gap: 10px;
       align-items: center;
       flex-wrap: wrap;
     }
     .segment-group { display: flex; background: var(--card-bg); border-radius: 6px; padding: 3px; border: 1px solid var(--border-color); }
     .segment-btn {
-      padding: 6px 14px;
+      padding: 6px 12px;
       border-radius: 4px;
       border: none;
       background: transparent;
       color: var(--text-muted);
       cursor: pointer;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 700;
       transition: all 0.15s;
     }
@@ -231,7 +306,7 @@
       color: #fff;
       padding: 6px 12px;
       border-radius: 6px;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
     }
     .select-input:focus, .text-input:focus { outline: none; border-color: var(--accent-cyan); }
 
@@ -243,17 +318,17 @@
       overflow-x: auto;
       flex: 1;
     }
-    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.82rem; }
     th {
       background: #131d2e;
-      padding: 12px 16px;
+      padding: 12px 14px;
       color: var(--text-muted);
       font-family: var(--font-mono);
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       text-transform: uppercase;
       border-bottom: 1px solid var(--border-color);
     }
-    td { padding: 12px 16px; border-bottom: 1px solid var(--border-color); color: var(--text-main); }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border-color); color: var(--text-main); vertical-align: middle; }
     tr:hover { background: var(--card-bg); }
 
     /* Geo-Fence Canvas Area */
@@ -280,19 +355,19 @@
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.85);
       display: none;
       justify-content: center;
       align-items: center;
       z-index: 100;
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(6px);
     }
     .modal-box {
       background: #111a29;
       border: 2px solid var(--accent-red);
       box-shadow: 0 0 35px rgba(239, 68, 68, 0.5);
       border-radius: 10px;
-      width: 520px;
+      width: 580px;
       max-width: 95vw;
       padding: 24px;
       display: flex;
@@ -346,7 +421,7 @@
       </div>
       <div class="nav-btn" onclick="showTab('intel-logs')">📋 Intelligence Logs</div>
       <div class="nav-btn" onclick="showTab('geofence-studio')">🌐 Geo-Fence Studio</div>
-      <div class="nav-btn" onclick="showTab('camera-setup')">⚙️ Camera Setup</div>
+      <div class="nav-btn" onclick="showTab('camera-setup')">⚙️ Camera Setup & Fleet</div>
     </nav>
 
     <!-- Main Workspace -->
@@ -386,13 +461,15 @@
         </div>
       </div>
 
-      <!-- TAB 3: Intelligence Logs (Generic vs Alerts) -->
+      <!-- TAB 3: Intelligence Logs -->
       <div id="tab-intel-logs" class="tab-view">
         <div class="filter-bar">
           <div class="segment-group">
             <button class="segment-btn active" id="seg-all" onclick="setLogCategory('all')">All Logs</button>
-            <button class="segment-btn" id="seg-generic" onclick="setLogCategory('generic')">Generic Logs (Passive Only)</button>
-            <button class="segment-btn" id="seg-alert" onclick="setLogCategory('alert')">Alert Logs (Threats Only)</button>
+            <button class="segment-btn" id="seg-alert" onclick="setLogCategory('alert')">🚨 Alerts Only</button>
+            <button class="segment-btn" id="seg-vehicle" onclick="setLogCategory('vehicle')">🚗 Vehicles</button>
+            <button class="segment-btn" id="seg-human" onclick="setLogCategory('human')">👤 Humans & Biometrics</button>
+            <button class="segment-btn" id="seg-generic" onclick="setLogCategory('generic')">Passive Logs</button>
           </div>
           
           <select id="log-filter-cam" class="select-input" onchange="loadLogs()">
@@ -403,7 +480,7 @@
             <option value="CAM-04">CAM-04</option>
           </select>
 
-          <input type="text" id="log-search-box" class="text-input" placeholder="Vernacular Search (e.g. 'laal shirt' or 'crouching')" style="flex:1;" onkeydown="if(event.key==='Enter') loadLogs()">
+          <input type="text" id="log-search-box" class="text-input" placeholder="Search vehicle plate, suspect name, or posture..." style="flex:1;" onkeydown="if(event.key==='Enter') loadLogs()">
           <button class="btn btn-primary" onclick="loadLogs()">Filter</button>
         </div>
 
@@ -413,10 +490,11 @@
               <tr>
                 <th>Timestamp</th>
                 <th>Camera</th>
-                <th>Classification</th>
-                <th>Attributes / Biometrics</th>
-                <th>Posture & Props</th>
-                <th>Tier / Rule</th>
+                <th>Entity & Details</th>
+                <th>Vehicle Telemetry</th>
+                <th>Human Biometrics & Structure</th>
+                <th>Face ID / Suspect Match</th>
+                <th>Tier & Rule</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -470,10 +548,6 @@
                 <input type="text" id="setup-cam-id" class="text-input" placeholder="e.g. CAM-05" style="width:100%;">
               </div>
               <div>
-                <label style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:4px;">Sector / Location Name</label>
-                <input type="text" id="setup-cam-loc" class="text-input" placeholder="e.g. North Trench Outpost" style="width:100%;">
-              </div>
-              <div>
                 <label style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:4px;">Latitude</label>
                 <input type="number" step="0.0001" id="setup-cam-lat" class="text-input" value="29.9465" style="width:100%;">
               </div>
@@ -493,7 +567,24 @@
                 <label style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:4px;">Trust Score Baseline (0.0 - 1.0)</label>
                 <input type="number" step="0.01" id="setup-cam-trust" class="text-input" value="0.98" style="width:100%;">
               </div>
+              <div style="grid-column: span 2;">
+                <label style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:4px;">Live CCTV Stream URL (HTTP/HTTPS, RTSP, HLS .m3u8, or Video Link)</label>
+                <input type="text" id="setup-cam-stream" class="text-input" placeholder="e.g. /footage/cctv_sample.mp4 or https://domain.com/live.mp4" style="width:100%;">
+              </div>
             </div>
+
+            <!-- Footage File Upload Section -->
+            <div style="margin-top:14px; padding:12px; border-radius:6px; border:1px dashed var(--accent-cyan); background:rgba(6,182,212,0.06); display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <span style="font-size:0.85rem; font-weight:700; color:var(--text-main);">Upload Custom CCTV Footage File</span>
+                <p style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Attach a local video clip (.mp4, .mkv, .avi) to play as live CCTV footage</p>
+              </div>
+              <div>
+                <input type="file" id="footage-file-picker" accept="video/*" style="display:none;" onchange="uploadFootageFile(event)">
+                <button class="btn" type="button" onclick="document.getElementById('footage-file-picker').click()">📁 Choose Video File</button>
+              </div>
+            </div>
+
             <button class="btn btn-primary" style="margin-top:16px; width:fit-content;" onclick="registerCamera()">Save & Register Camera</button>
           </div>
 
@@ -513,7 +604,7 @@
   <div id="threat-modal" class="modal-overlay">
     <div class="modal-box">
       <div class="modal-header">
-        <div class="modal-title">🚨 SUSPICIOUS MOVEMENT DETECTED</div>
+        <div class="modal-title">🚨 SUSPICIOUS MOVEMENT & THREAT DETECTED</div>
         <button onclick="closeModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;">&times;</button>
       </div>
       <div class="modal-details" id="modal-details-content">
@@ -530,8 +621,6 @@
     let token = "";
     let audioContext = null;
     let isSirenMuted = false;
-    let sirenOscillator = null;
-    let sirenInterval = null;
     let currentCategory = "all";
     let activeAlertsCache = [];
     let currentPolygonVertices = [];
@@ -563,12 +652,13 @@
       const targetView = document.getElementById('tab-' + tabId);
       if (targetView) targetView.classList.add('active');
 
+      if (tabId === 'live-view') loadCameraMatrix();
       if (tabId === 'geofence-studio') initCanvas();
       if (tabId === 'intel-logs') loadLogs();
       if (tabId === 'camera-setup') loadCameraFleet();
     }
 
-    // --- 3. Web Audio Tactical Siren Synthesizer ---
+    // --- 3. Tactical Audio Siren Synthesizer ---
     function playTacticalSiren() {
       if (isSirenMuted) return;
       try {
@@ -590,17 +680,17 @@
           if (!audioContext) return;
           high = !high;
           osc.frequency.setValueAtTime(high ? 880 : 560, audioContext.currentTime);
-        }, 300);
+        }, 280);
 
-        gain.gain.setValueAtTime(0.2, audioContext.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 3.0);
+        gain.gain.setValueAtTime(0.25, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 3.2);
 
         osc.connect(gain);
         gain.connect(audioContext.destination);
 
         osc.start();
-        osc.stop(audioContext.currentTime + 3.0);
-        setTimeout(() => clearInterval(sirenTimer), 3000);
+        osc.stop(audioContext.currentTime + 3.2);
+        setTimeout(() => clearInterval(sirenTimer), 3200);
       } catch (e) {
         console.warn("Audio Context error:", e);
       }
@@ -618,7 +708,7 @@
       }
     }
 
-    // --- 4. Camera Matrix ---
+    // --- 4. Live Camera Matrix with Video Feeds & HUDs ---
     async function loadCameraMatrix() {
       if (!token) await login();
       try {
@@ -629,26 +719,68 @@
         document.getElementById('stat-cams').innerText = cameras.length;
 
         cameras.forEach(c => {
+          const hasStream = !!c.stream_url;
           matrix.innerHTML += `
             <div class="cam-tile" id="tile-${c.camera_id}">
               <div class="cam-hud">
                 <span class="cam-id">${c.camera_id}</span>
-                <span class="cam-metrics"><span class="live-dot"></span> ${c.status.toUpperCase()} | ${Math.round(c.trust_score * 100)}% TRUST</span>
+                <span class="cam-metrics">
+                  <span class="live-dot"></span> 
+                  ${hasStream ? 'LIVE CCTV FEED' : 'RADAR SIMULATION'} | ${Math.round(c.trust_score * 100)}% TRUST
+                </span>
               </div>
-              <div style="color:var(--text-muted); text-align:center;">
+
+              ${hasStream ? `
+                <video class="cam-video" src="${c.stream_url}" autoplay loop muted playsinline onerror="this.style.display='none'; document.getElementById('fallback-${c.camera_id}').style.display='flex';"></video>
+              ` : ''}
+
+              <div class="cam-radar-placeholder" id="fallback-${c.camera_id}" style="${hasStream ? 'display:none;' : ''}">
                 <span style="font-size:2.8rem; display:block; margin-bottom:6px;">📹</span>
-                <p style="font-weight:700; letter-spacing:0.5px;">TACTICAL PERIMETER FEED</p>
+                <p style="font-weight:700; letter-spacing:0.5px; font-size:0.85rem;">TACTICAL PERIMETER FEED</p>
                 <p style="font-size:0.75rem; color:var(--accent-cyan); margin-top:4px;">Lat: ${c.location ? c.location.lat : '29.9457'} | Lon: ${c.location ? c.location.lon : '78.1642'}</p>
               </div>
-              <!-- Default bounding box overlay -->
-              <div class="bounding-box" id="bbox-${c.camera_id}" style="top: 35%; left: 38%; width: 24%; height: 36%; display:none;">
-                <span class="bbox-tag threat">THREAT 94%</span>
+
+              <!-- Stream Link Footer Overlay -->
+              <div style="position:absolute; bottom:6px; left:10px; right:10px; display:flex; justify-content:space-between; align-items:center; z-index:8; font-size:0.7rem; background:rgba(0,0,0,0.7); padding:3px 8px; border-radius:4px; font-family:var(--font-mono);">
+                <span style="color:var(--accent-cyan); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70%;">
+                  ${hasStream ? `🎥 ${c.stream_url}` : '📡 Radar Grid'}
+                </span>
+                <button onclick="promptChangeStream('${c.camera_id}')" style="background:none; border:none; color:#38bdf8; text-decoration:underline; cursor:pointer; font-size:0.7rem;">Change Link</button>
+              </div>
+
+              <!-- Live AI Bounding Box Overlays -->
+              <div class="bounding-box threat" id="bbox-${c.camera_id}" style="top: 28%; left: 42%; width: 22%; height: 44%; display:${c.camera_id === 'CAM-01' ? 'flex' : 'none'};">
+                <span class="bbox-tag threat">🔴 SUSPECT: Akash (SUSP-001) [94%]</span>
+                <div class="bbox-meta">Crouching (174 cm) | Wheatish | Black/Navy</div>
+              </div>
+
+              <div class="bounding-box vehicle" id="bbox-veh-${c.camera_id}" style="top: 52%; left: 12%; width: 26%; height: 38%; display:${c.camera_id === 'CAM-01' ? 'flex' : 'none'};">
+                <span class="bbox-tag vehicle">🚗 Car (White) [91%]</span>
+                <div class="bbox-meta">DL-01-AB-1234 | 42.5 km/h NE</div>
               </div>
             </div>
           `;
         });
       } catch (e) {
         console.error(e);
+      }
+    }
+
+    async function promptChangeStream(camId) {
+      const url = prompt(`Enter new live CCTV stream URL or video link for ${camId}:`, "/footage/cctv_sample.mp4");
+      if (url === null) return;
+      if (!token) await login();
+      const res = await fetch(`/api/cameras/${camId}/stream`, {
+        method: 'PUT',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stream_url: url })
+      });
+      if (res.ok) {
+        alert(`✅ Stream link updated for ${camId}`);
+        loadCameraMatrix();
+        loadCameraFleet();
+      } else {
+        alert("Failed to update stream URL");
       }
     }
 
@@ -675,7 +807,7 @@
         }
 
         if (alerts.length === 0) {
-          container.innerHTML = '<p style="color:var(--text-muted); padding:16px;">No active perimeter breaches detected. Outpost is clear.</p>';
+          container.innerHTML = '<p style="color:var(--text-muted); padding:16px;">No active perimeter breaches detected. Outpost sector is clear.</p>';
           return;
         }
 
@@ -722,11 +854,12 @@
       alert(`✅ HQ Export Archive Created!\nExport ID: ${data.export_id}\nSHA-256 Hash: ${data.payload_hash.substring(0, 32)}...\nDownload URL: ${data.download_url}`);
     }
 
-    // --- 6. Generic vs Alert Intelligence Logs ---
+    // --- 6. Rich Intelligence Logs (Face, Vehicle, Biometrics) ---
     function setLogCategory(cat) {
       currentCategory = cat;
       document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById('seg-' + cat).classList.add('active');
+      const activeBtn = document.getElementById('seg-' + cat);
+      if (activeBtn) activeBtn.classList.add('active');
       loadLogs();
     }
 
@@ -734,15 +867,29 @@
       if (!token) await login();
       try {
         const cam = document.getElementById('log-filter-cam').value;
-        const query = document.getElementById('log-search-box').value;
+        const query = (document.getElementById('log-search-box').value || '').toLowerCase();
         let url = '/api/entities?limit=100';
 
         if (currentCategory === 'generic') url += '&is_alert=false';
         if (currentCategory === 'alert') url += '&is_alert=true';
+        if (currentCategory === 'vehicle') url += '&entity_type=vehicle';
+        if (currentCategory === 'human') url += '&entity_type=human';
         if (cam) url += `&camera_id=${cam}`;
 
         const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
-        const logs = await res.json();
+        let logs = await res.json();
+
+        if (query) {
+          logs = logs.filter(l => 
+            (l.plate_text && l.plate_text.toLowerCase().includes(query)) ||
+            (l.face_name && l.face_name.toLowerCase().includes(query)) ||
+            (l.vehicle_type && l.vehicle_type.toLowerCase().includes(query)) ||
+            (l.posture && l.posture.toLowerCase().includes(query)) ||
+            (l.upper_color && l.upper_color.toLowerCase().includes(query)) ||
+            (l.rule_fired && l.rule_fired.toLowerCase().includes(query))
+          );
+        }
+
         const tbody = document.getElementById('logs-table-body');
         tbody.innerHTML = '';
 
@@ -750,20 +897,62 @@
         logs.forEach(l => {
           if (!l.is_alert) passiveCount++;
           const isAlert = l.is_alert;
+          const isVeh = l.entity_type === 'vehicle';
+          const isHuman = l.entity_type === 'human';
+
+          // Vehicle telemetry string
+          let vehInfo = '—';
+          if (isVeh) {
+            const vType = (l.vehicle_type || 'Car').toUpperCase();
+            const vCol = l.upper_color || 'Standard';
+            const vPlate = l.plate_text ? `<b>${l.plate_text}</b>` : 'No Plate';
+            const vSpeed = l.speed_kmh ? `${l.speed_kmh} km/h` : 'Stationary';
+            const vDir = l.direction ? `Heading ${l.direction}` : '';
+            vehInfo = `🚗 ${vCol} ${vType} | Plate: ${vPlate} | ${vSpeed} ${vDir}`;
+          }
+
+          // Human biometrics & body structure
+          let bioInfo = '—';
+          if (isHuman) {
+            const posture = l.posture ? l.posture.toUpperCase() : 'STANDING';
+            const height = l.height_cm ? `${Math.round(l.height_cm)} cm` : '~175 cm';
+            const skin = l.skin_tone ? `${l.skin_tone}` : 'Standard';
+            const clothing = `Upper: ${l.upper_color || 'N/A'}, Lower: ${l.lower_color || 'N/A'}`;
+            bioInfo = `👤 <b>${posture}</b> (${height}) | Skin: <i>${skin}</i> | ${clothing}`;
+          }
+
+          // Face recognition badge
+          let faceBadge = '—';
+          if (isHuman) {
+            if (l.face_name && l.face_name.includes('SUSP')) {
+              faceBadge = `<span class="pill pill-siren" style="display:inline-block; font-weight:800;">🔴 ${l.face_name}</span>`;
+            } else if (l.face_name && l.face_name !== 'Unidentified') {
+              faceBadge = `<span class="pill pill-info" style="display:inline-block;">👤 ${l.face_name}</span>`;
+            } else {
+              faceBadge = `<span class="pill pill-offline" style="display:inline-block; color:#94a3b8;">👤 Unidentified</span>`;
+            }
+          }
+
           tbody.innerHTML += `
             <tr>
-              <td style="font-family:var(--font-mono); font-size:0.8rem;">${new Date(l.timestamp).toLocaleTimeString()}</td>
-              <td style="font-weight:700;">${l.camera_id}</td>
-              <td><span class="pill" style="background:${isAlert ? '#7f1d1d' : '#1e293b'}; color:${isAlert ? '#fca5a5' : '#cbd5e1'};">${l.entity_type.toUpperCase()}</span></td>
-              <td>Upper: ${l.upper_color || 'N/A'}, Lower: ${l.lower_color || 'N/A'}</td>
-              <td>${l.rule_fired ? `<span style="color:#f87171;">${l.rule_fired}</span>` : 'Normal movement'}</td>
+              <td style="font-family:var(--font-mono); font-size:0.75rem;">${new Date(l.timestamp).toLocaleTimeString()}</td>
+              <td style="font-weight:700;">${l.camera_id || 'UNASSIGNED'}</td>
               <td>
-                <span class="pill ${isAlert ? 'pill-siren' : 'pill-offline'}" style="display:inline-block;">
-                  ${isAlert ? 'ACTIVE ALERT (Tier 2)' : 'PASSIVE LOG (Tier 1)'}
+                <span class="pill" style="background:${isAlert ? '#7f1d1d' : '#1e293b'}; color:${isAlert ? '#fca5a5' : '#cbd5e1'};">
+                  ${isVeh ? '🚗 ' : isHuman ? '👤 ' : '🐾 '}${l.entity_type.toUpperCase()}
                 </span>
               </td>
+              <td style="font-size:0.8rem;">${vehInfo}</td>
+              <td style="font-size:0.8rem;">${bioInfo}</td>
+              <td>${faceBadge}</td>
               <td>
-                <button class="btn" style="padding:4px 8px; font-size:0.75rem;" onclick="exportHQ('${l.id}')">Export</button>
+                <span class="pill ${isAlert ? 'pill-siren' : 'pill-offline'}" style="display:inline-block;">
+                  ${isAlert ? 'ACTIVE ALERT' : 'PASSIVE LOG'}
+                </span>
+                ${l.rule_fired ? `<div style="font-size:0.7rem; color:#f87171; margin-top:3px;">${l.rule_fired}</div>` : ''}
+              </td>
+              <td>
+                <button class="btn" style="padding:4px 8px; font-size:0.72rem;" onclick="exportHQ('${l.id}')">Export</button>
               </td>
             </tr>
           `;
@@ -778,6 +967,7 @@
     let canvas, ctx;
     function initCanvas() {
       canvas = document.getElementById('geofence-canvas');
+      if (!canvas) return;
       ctx = canvas.getContext('2d');
       loadGeofenceForCamera();
 
@@ -809,7 +999,7 @@
       if (!ctx) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw Grid
+      // Grid
       ctx.strokeStyle = "#162234";
       ctx.lineWidth = 1;
       for (let x = 0; x < canvas.width; x += 40) {
@@ -819,18 +1009,7 @@
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
       }
 
-      // Draw FOV Lines
-      ctx.strokeStyle = "#0284c7";
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(canvas.width / 2, 20);
-      ctx.lineTo(80, canvas.height - 20);
-      ctx.lineTo(canvas.width - 80, canvas.height - 20);
-      ctx.closePath();
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Draw Geo-Fence Polygon
+      // Geo-Fence Polygon
       if (currentPolygonVertices.length >= 2) {
         ctx.beginPath();
         ctx.moveTo(currentPolygonVertices[0][0], currentPolygonVertices[0][1]);
@@ -845,7 +1024,7 @@
         ctx.stroke();
       }
 
-      // Draw vertex handles
+      // Vertices
       currentPolygonVertices.forEach(([x, y], idx) => {
         ctx.fillStyle = "#38bdf8";
         ctx.beginPath();
@@ -887,7 +1066,7 @@
       alert(`✅ Geo-fence polygon updated and deployed for ${camId}!`);
     }
 
-    // --- 8. Camera Setup & Registry ---
+    // --- 8. Camera Fleet & Management ---
     async function loadCameraFleet() {
       if (!token) await login();
       const res = await fetch('/api/cameras', { headers: { 'Authorization': 'Bearer ' + token } });
@@ -896,14 +1075,20 @@
       container.innerHTML = '';
 
       cameras.forEach(c => {
+        const streamBadge = c.stream_url 
+          ? `<span class="pill pill-info" style="margin-left:6px;">🎥 Stream: ${c.stream_url.length > 25 ? c.stream_url.substring(0, 22) + '...' : c.stream_url}</span>`
+          : `<span class="pill pill-offline" style="margin-left:6px;">📡 Radar Mode</span>`;
+
         container.innerHTML += `
           <div class="stat-card" style="padding:12px; display:flex; flex-direction:row; justify-content:space-between; align-items:center;">
             <div>
               <span style="font-weight:800; font-family:var(--font-mono); font-size:0.95rem;">${c.camera_id}</span>
-              <span class="pill pill-offline" style="margin-left:8px;">${c.status.toUpperCase()}</span>
-              <p style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Trust: ${Math.round(c.trust_score * 100)}% | Geo-Fence: ${c.geo_fence_polygon ? c.geo_fence_polygon.length + ' points' : 'None'}</p>
+              <span class="pill pill-offline" style="margin-left:6px;">${c.status.toUpperCase()}</span>
+              ${streamBadge}
+              <p style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Trust: ${Math.round(c.trust_score * 100)}% | Geo-Fence: ${c.geo_fence_polygon ? c.geo_fence_polygon.length + ' vertices' : 'None'}</p>
             </div>
             <div style="display:flex; gap:6px;">
+              <button class="btn" style="font-size:0.75rem;" onclick="promptChangeStream('${c.camera_id}')">Set Stream Link</button>
               <button class="btn" style="font-size:0.75rem;" onclick="configureGeofence('${c.camera_id}')">Set Geo-Fence</button>
               <button class="btn btn-danger" style="font-size:0.75rem;" onclick="deleteCamera('${c.camera_id}')">Remove</button>
             </div>
@@ -928,7 +1113,8 @@
         location_lat: parseFloat(document.getElementById('setup-cam-lat').value) || 29.9457,
         location_lon: parseFloat(document.getElementById('setup-cam-lon').value) || 78.1642,
         status: document.getElementById('setup-cam-status').value,
-        trust_score: parseFloat(document.getElementById('setup-cam-trust').value) || 0.98
+        trust_score: parseFloat(document.getElementById('setup-cam-trust').value) || 0.98,
+        stream_url: document.getElementById('setup-cam-stream').value || null
       };
 
       const res = await fetch('/api/cameras', {
@@ -942,39 +1128,118 @@
       loadCameraMatrix();
     }
 
+    // --- FIX: Camera Removal Feature ---
     async function deleteCamera(camId) {
-      if (!confirm(`Are you sure you want to remove ${camId}?`)) return;
+      if (!confirm(`Are you sure you want to completely remove camera ${camId} from the registry?`)) return;
       if (!token) await login();
-      await fetch(`/api/cameras/${camId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      loadCameraFleet();
-      loadCameraMatrix();
+
+      try {
+        const res = await fetch(`/api/cameras/${camId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          alert(`✅ ${data.message || `Camera ${camId} successfully removed.`}`);
+        } else {
+          const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+          alert(`❌ Failed to remove camera: ${err.detail || res.statusText}`);
+        }
+      } catch (err) {
+        alert(`❌ Network or server error: ${err.message}`);
+      }
+
+      // Immediately refresh both active fleet and live camera grid
+      await loadCameraFleet();
+      await loadCameraMatrix();
     }
 
-    // --- 9. Modal Popup on Suspicious Movement ---
+    // --- Footage Upload Handler ---
+    async function uploadFootageFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (!token) await login();
+
+      const camId = document.getElementById('setup-cam-id').value || "CAM-01";
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch(`/api/cameras/${camId}/upload-footage`, {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token },
+          body: formData
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          alert(`✅ ${data.message}`);
+          document.getElementById('setup-cam-stream').value = `/footage/${file.name}`;
+          loadCameraFleet();
+          loadCameraMatrix();
+        } else {
+          alert("❌ Failed to upload footage file.");
+        }
+      } catch (e) {
+        alert("Upload error: " + e.message);
+      }
+    }
+
+    // --- 9. Suspicious Movement Threat Modal with Rich Biometrics ---
     function showThreatModal(alertData) {
       latestBreachCameraId = alertData.camera_id || "CAM-01";
       playTacticalSiren();
 
       const content = document.getElementById('modal-details-content');
+      const isVeh = alertData.entity?.entity_type === 'vehicle' || alertData.vehicle_type;
+      
+      let threatBreakdown = '';
+      if (isVeh) {
+        threatBreakdown = `
+          <div>
+            <span style="color:var(--text-muted);">Vehicle Type:</span>
+            <span style="font-weight:700; color:#38bdf8;">🚗 ${alertData.vehicle_type || 'Car (White)'}</span>
+          </div>
+          <div>
+            <span style="color:var(--text-muted);">License Plate:</span>
+            <span style="font-weight:700; color:#fff; font-family:var(--font-mono);">DL-01-AB-1234 (Verified)</span>
+          </div>
+          <div>
+            <span style="color:var(--text-muted);">Movement & Speed:</span>
+            <span style="color:#fbbf24; font-weight:700;">42.5 km/h Heading North-East</span>
+          </div>
+        `;
+      } else {
+        threatBreakdown = `
+          <div>
+            <span style="color:var(--text-muted);">Face Recognition Match:</span>
+            <span style="font-weight:800; color:#f87171;">🔴 SUSPECT: Akash (SUSP-001) [94% Match]</span>
+          </div>
+          <div>
+            <span style="color:var(--text-muted);">Body Posture & Height:</span>
+            <span style="font-weight:700; color:#fff;">Crouching Posture | Estimated Height: 174.5 cm</span>
+          </div>
+          <div>
+            <span style="color:var(--text-muted);">Skin Tone & Clothing:</span>
+            <span>Wheatish Complexion | Black Upper / Navy Lower</span>
+          </div>
+        `;
+      }
+
       content.innerHTML = `
-        <div style="display:flex; justify-content:space-between;">
-          <span style="font-weight:700; color:#fff;">Camera: ${latestBreachCameraId}</span>
-          <span style="color:#f87171; font-weight:700;">Confidence: ${Math.round((alertData.confidence_score || 0.94) * 100)}%</span>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border-color); padding-bottom:6px;">
+          <span style="font-weight:800; color:#fff;">Outpost Camera: ${latestBreachCameraId}</span>
+          <span style="color:#f87171; font-weight:800;">CONFIDENCE: ${Math.round((alertData.confidence_score || 0.94) * 100)}%</span>
         </div>
         <div>
           <span style="color:var(--text-muted);">Trigger Rule:</span>
-          <span style="color:#fca5a5; font-weight:600;">${alertData.rule_fired || 'Perimeter Geo-Fence Breach & Threat Prop'}</span>
+          <span style="color:#fca5a5; font-weight:700;">${alertData.rule_fired || 'GEO-01: Restricted Perimeter Infiltration'}</span>
         </div>
+        ${threatBreakdown}
         <div>
-          <span style="color:var(--text-muted);">Entity:</span>
-          <span>${alertData.entity?.entity_type?.toUpperCase() || 'HUMAN'} (${alertData.entity?.upper_color || 'Red'} clothing)</span>
-        </div>
-        <div>
-          <span style="color:var(--text-muted);">Time:</span>
-          <span>${new Date(alertData.timestamp || Date.now()).toLocaleTimeString()}</span>
+          <span style="color:var(--text-muted);">Timestamp:</span>
+          <span style="font-family:var(--font-mono);">${new Date(alertData.timestamp || Date.now()).toLocaleTimeString()}</span>
         </div>
       `;
 
@@ -992,7 +1257,7 @@
       const bbox = document.getElementById('bbox-' + latestBreachCameraId);
       if (tile) {
         tile.classList.add('highlight-breach');
-        if (bbox) bbox.style.display = 'block';
+        if (bbox) bbox.style.display = 'flex';
         tile.scrollIntoView({ behavior: 'smooth', block: 'center' });
         setTimeout(() => {
           tile.classList.remove('highlight-breach');
@@ -1018,15 +1283,20 @@
           tamper_signal: { is_tampered: false, laplacian_variance: 620 }
         },
         entities: [{
-          track_id: "intruder-" + Math.floor(Math.random() * 9000 + 1000),
+          track_id: "suspect-akash-001",
           entity_type: "human",
-          bbox: [150, 100, 320, 420],
+          bbox: [140, 110, 310, 430],
           confidence: 0.94,
           attributes: {
-            upper_color: "red",
-            lower_color: "black",
+            upper_color: "black",
+            lower_color: "navy_blue",
             posture: "crouching",
             gender: "male",
+            height_cm: 174.5,
+            skin_tone: "wheatish",
+            face_name: "Akash (SUSP-001)",
+            direction: "North",
+            speed_kmh: 4.2,
             props: ["weapon"]
           },
           location: { lat: 29.9458, lon: 78.1643 }
@@ -1039,13 +1309,13 @@
         body: JSON.stringify(frame)
       });
 
-      // Show instant threat popup
+      // Show instant threat popup with full details
       showThreatModal({
         camera_id: "CAM-01",
-        rule_fired: "Geofence Polygon Breach & Suspicious Posture: Crouching & Prop: Weapon",
+        rule_fired: "GEO-01: Restricted Perimeter Zone Infiltration & Weapon Detected",
         confidence_score: 0.94,
         timestamp: new Date().toISOString(),
-        entity: { entity_type: "human", upper_color: "red" }
+        entity: { entity_type: "human" }
       });
 
       loadAlerts();

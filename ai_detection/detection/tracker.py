@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+import math
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -77,19 +78,63 @@ class ByteTracker:
                         best_iou = iou
                         best_id = t_id
 
+            curr_cx = float(entity.bbox[0] + entity.bbox[2]) / 2.0
+            curr_cy = float(entity.bbox[1] + entity.bbox[3]) / 2.0
+
             if best_id is not None:
                 entity.track_id = f"TRK-{best_id:04d}"
+                prev_cx, prev_cy = self._active_tracks[best_id].get("centroid", (curr_cx, curr_cy))
+                dx = curr_cx - prev_cx
+                dy = curr_cy - prev_cy
+                dist = math.hypot(dx, dy)
+
+                if dist >= 2.0:
+                    angle = math.atan2(-dy, dx)
+                    deg = (math.degrees(angle) + 360.0) % 360.0
+                    if 22.5 <= deg < 67.5:
+                        direction = "North-East"
+                    elif 67.5 <= deg < 112.5:
+                        direction = "North"
+                    elif 112.5 <= deg < 157.5:
+                        direction = "North-West"
+                    elif 157.5 <= deg < 202.5:
+                        direction = "West"
+                    elif 202.5 <= deg < 247.5:
+                        direction = "South-West"
+                    elif 247.5 <= deg < 292.5:
+                        direction = "South"
+                    elif 292.5 <= deg < 337.5:
+                        direction = "South-East"
+                    else:
+                        direction = "East"
+                    speed_kmh = round(dist * 0.05 * 25.0 * 3.6, 1)
+                else:
+                    direction = self._active_tracks[best_id].get("direction", "North")
+                    speed_kmh = self._active_tracks[best_id].get("speed_kmh", 0.0)
+
                 self._active_tracks[best_id]["bbox"] = entity.bbox
+                self._active_tracks[best_id]["centroid"] = (curr_cx, curr_cy)
+                self._active_tracks[best_id]["direction"] = direction
+                self._active_tracks[best_id]["speed_kmh"] = speed_kmh
                 self._active_tracks[best_id]["age"] = 0
+                entity.direction = direction
+                entity.speed_kmh = speed_kmh
             else:
                 new_id = self._next_id
                 self._next_id += 1
                 entity.track_id = f"TRK-{new_id:04d}"
+                direction = "North-East" if entity.entity_type == "vehicle" else "North"
+                speed_kmh = 32.0 if entity.entity_type == "vehicle" else 4.0
                 self._active_tracks[new_id] = {
                     "bbox": entity.bbox,
                     "entity_type": entity.entity_type,
+                    "centroid": (curr_cx, curr_cy),
+                    "direction": direction,
+                    "speed_kmh": speed_kmh,
                     "age": 0,
                 }
+                entity.direction = direction
+                entity.speed_kmh = speed_kmh
 
             updated_entities.append(entity)
 

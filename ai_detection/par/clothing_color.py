@@ -182,3 +182,84 @@ def extract_clothing_colors(
     lower_color = get_dominant_color(lower_patch)
 
     return (upper_color, lower_color)
+
+
+def extract_vehicle_color(
+    vehicle_crop: np.ndarray,
+    is_low_light: bool = False,
+) -> str:
+    """
+    Extract dominant body paint color of a detected vehicle.
+    Uses the central 70% of crop to minimize road/background bias.
+    """
+    if is_low_light:
+        return "unknown"
+
+    if vehicle_crop is None or vehicle_crop.size == 0:
+        return "unknown"
+
+    h, w = vehicle_crop.shape[:2]
+    if h < 20 or w < 20:
+        return "unknown"
+
+    y1, y2 = int(h * 0.15), int(h * 0.85)
+    x1, x2 = int(w * 0.15), int(w * 0.85)
+    center_patch = vehicle_crop[y1:y2, x1:x2]
+
+    return get_dominant_color(center_patch)
+
+
+def estimate_skin_tone(
+    person_crop: np.ndarray,
+    is_low_light: bool = False,
+) -> str:
+    """
+    Estimate skin tone category (fair, wheatish, medium, dark) from face/head region.
+    """
+    if is_low_light:
+        return "unknown"
+
+    if person_crop is None or person_crop.size == 0:
+        return "unknown"
+
+    h, w = person_crop.shape[:2]
+    if h < 30 or w < 15:
+        return "unknown"
+
+    y1, y2 = 0, int(h * 0.22)
+    x1, x2 = int(w * 0.25), int(w * 0.75)
+    head_patch = person_crop[y1:y2, x1:x2]
+
+    if head_patch.size == 0:
+        return "unknown"
+
+    hsv = bgr_to_hsv_numpy(head_patch)
+    v_mean = float(np.mean(hsv[:, :, 2]))
+
+    if v_mean >= 170.0:
+        return "fair"
+    elif v_mean >= 135.0:
+        return "wheatish"
+    elif v_mean >= 95.0:
+        return "medium"
+    else:
+        return "dark"
+
+
+def estimate_posture(bbox: List[int]) -> str:
+    """
+    Estimate human body posture (standing, crouching, prone) from bbox aspect ratio.
+    """
+    if not bbox or len(bbox) < 4:
+        return "standing"
+
+    w = float(bbox[2] - bbox[0])
+    h = float(max(bbox[3] - bbox[1], 1))
+    ratio = w / h
+
+    if ratio > 1.25:
+        return "prone"
+    elif ratio >= 0.75:
+        return "crouching"
+    else:
+        return "standing"

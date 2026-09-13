@@ -209,8 +209,10 @@ class KnownSuspectStore:
 
         if best_score >= threshold:
             matched_id = self._id_list[best_idx]
+            matched_name = self.suspects[matched_id].name if matched_id in self.suspects else matched_id
             return {
                 "suspect_id": matched_id,
+                "name": matched_name,
                 "confidence": round(best_score, 4),
             }
 

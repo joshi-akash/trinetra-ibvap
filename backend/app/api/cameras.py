@@ -1,10 +1,16 @@
+import shutil
+from pathlib import Path
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
 
+from backend.app.config import PROJECT_ROOT
 from backend.app.database import get_db
-from backend.app.models import CameraRegistry, User
-from backend.app.schemas import CameraOut, CameraCreate, CalibrationRequest, GenericStatusResponse
+from backend.app.models import CameraRegistry, EntityLog, User
+from backend.app.schemas import (
+    CameraOut, CameraCreate, CalibrationRequest,
+    StreamUpdateRequest, GenericStatusResponse
+)
 from backend.app.auth.jwt_auth import get_current_user
 
 router = APIRouter(prefix="/api/cameras", tags=["Cameras"])
@@ -25,7 +31,8 @@ def list_cameras(
             calibration_reference_points=c.calibration_reference_points,
             trust_score=c.trust_score,
             status=c.status,
-            last_tamper_check=c.last_tamper_check
+            last_tamper_check=c.last_tamper_check,
+            stream_url=c.stream_url
         ))
     return results
 
@@ -43,6 +50,8 @@ def create_camera(
         existing.trust_score = req.trust_score
         if req.geo_fence_polygon:
             existing.geo_fence_polygon = req.geo_fence_polygon
+        if req.stream_url is not None:
+            existing.stream_url = req.stream_url
         db.commit()
         return GenericStatusResponse(status="success", message=f"Camera {req.camera_id} updated successfully")
 
@@ -52,7 +61,8 @@ def create_camera(
         location_lon=req.location_lon,
         status=req.status or "online",
         trust_score=req.trust_score or 0.95,
-        geo_fence_polygon=req.geo_fence_polygon
+        geo_fence_polygon=req.geo_fence_polygon,
+        stream_url=req.stream_url
     )
     db.add(camera)
     db.commit()
@@ -67,9 +77,52 @@ def delete_camera(
     camera = db.query(CameraRegistry).filter(CameraRegistry.camera_id == camera_id).first()
     if not camera:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera not found")
-    db.delete(camera)
+
+    try:
+        # Nullify foreign key references in EntityLog before deleting camera
+        db.query(EntityLog).filter(EntityLog.camera_id == camera_id).update({"camera_id": None})
+        db.delete(camera)
+        db.commit()
+        return GenericStatusResponse(status="success", message=f"Camera {camera_id} removed from registry")
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to delete camera: {str(e)}")
+
+@router.put("/{camera_id}/stream", response_model=GenericStatusResponse)
+def update_camera_stream(
+    camera_id: str,
+    req: StreamUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    camera = db.query(CameraRegistry).filter(CameraRegistry.camera_id == camera_id).first()
+    if not camera:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera not found")
+
+    camera.stream_url = req.stream_url
     db.commit()
-    return GenericStatusResponse(status="success", message=f"Camera {camera_id} removed from registry")
+    return GenericStatusResponse(status="success", message=f"Stream URL updated for {camera_id}")
+
+@router.post("/{camera_id}/upload-footage", response_model=GenericStatusResponse)
+async def upload_camera_footage(
+    camera_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    camera = db.query(CameraRegistry).filter(CameraRegistry.camera_id == camera_id).first()
+    if not camera:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera not found")
+
+    footage_dir = PROJECT_ROOT / "test_footage"
+    footage_dir.mkdir(parents=True, exist_ok=True)
+    dest_file = footage_dir / file.filename
+    with open(dest_file, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    camera.stream_url = f"/footage/{file.filename}"
+    db.commit()
+    return GenericStatusResponse(status="success", message=f"Uploaded {file.filename} and bound to {camera_id}")
 
 @router.post("/{camera_id}/calibrate", response_model=GenericStatusResponse)
 def calibrate_camera(
@@ -87,4 +140,3 @@ def calibrate_camera(
     db.commit()
 
     return GenericStatusResponse(status="success", message=f"Calibration points updated for {camera_id}")
-

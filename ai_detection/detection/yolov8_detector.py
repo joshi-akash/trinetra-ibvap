@@ -55,6 +55,9 @@ class DetectedEntity:
     foot_point: Tuple[float, float]  # (x_foot, y_foot) = ((x1 + x2)/2, y2)
     crop: np.ndarray  # Cropped image patch BGR
     raw_class_name: Optional[str] = None
+    direction: Optional[str] = None
+    speed_kmh: Optional[float] = None
+    posture: Optional[str] = None
     extra_props: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:

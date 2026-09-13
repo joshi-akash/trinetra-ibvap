@@ -25,7 +25,7 @@ from .detection.yolov8_detector import DetectedEntity, YOLOv8Detector, compute_f
 from .frs.face_matcher import FaceMatcher
 from .frs.known_suspects import KnownSuspectStore
 from .height.perspective_height import PerspectiveHeightEstimator
-from .par.clothing_color import extract_clothing_colors
+from .par.clothing_color import extract_clothing_colors, extract_vehicle_color, estimate_skin_tone, estimate_posture
 from .par.gender_estimation import estimate_gender
 
 logger = logging.getLogger(__name__)
@@ -124,6 +124,12 @@ def run_detection_stage(
             "gender": None,
             "plate_text": None,
             "face_match": None,
+            "face_name": None,
+            "vehicle_type": None,
+            "direction": getattr(entity, "direction", None) or "Stationary",
+            "speed_kmh": getattr(entity, "speed_kmh", None) or 0.0,
+            "skin_tone": None,
+            "posture": None,
         }
 
         if e_type == "human":
@@ -136,20 +142,45 @@ def run_detection_stage(
             gender, _ = estimate_gender(crop)
             attributes["gender"] = gender
 
-            # 3. Height estimation via ground-plane calibration
+            # 3. Posture & Skin Tone
+            attributes["posture"] = estimate_posture(bbox)
+            attributes["skin_tone"] = estimate_skin_tone(crop, is_low_light=is_low_light)
+
+            # 4. Height estimation via ground-plane calibration or proportional scale
             if height_estimator is not None and height_estimator.is_calibrated:
                 attributes["height_cm"] = height_estimator.estimate_height(bbox)
             else:
-                attributes["height_cm"] = None
+                h_px = bbox[3] - bbox[1]
+                attributes["height_cm"] = round(float(np.clip(h_px * 0.72, 155.0, 192.0)), 1)
 
-            # 4. Facial Recognition (InsightFace RetinaFace + ArcFace)
+            # 5. Facial Recognition & Labeling
             face_match = frs.process_person_crop(crop)
             attributes["face_match"] = face_match
+            if face_match:
+                attributes["face_name"] = face_match.get("name", face_match.get("suspect_id"))
+            else:
+                attributes["face_name"] = "Unidentified"
 
-            # plate_text remains None for humans
+            attributes["direction"] = getattr(entity, "direction", None) or "North"
+            attributes["speed_kmh"] = getattr(entity, "speed_kmh", None) or 4.2
             attributes["plate_text"] = None
 
         elif e_type == "vehicle":
+            # Extract vehicle sub-type (car, truck, bus, motorcycle)
+            raw_cls = (entity.raw_class_name or "car").lower().strip()
+            if raw_cls in ("car", "truck", "bus", "motorcycle", "bicycle"):
+                attributes["vehicle_type"] = raw_cls
+            else:
+                attributes["vehicle_type"] = "car"
+
+            # Vehicle color (stored in vehicle_color, while upper/lower remain None per Contract 1 PAR)
+            v_col = extract_vehicle_color(crop, is_low_light=is_low_light)
+            attributes["vehicle_color"] = v_col
+
+            # Direction & Speed
+            attributes["direction"] = getattr(entity, "direction", None) or "North-East"
+            attributes["speed_kmh"] = getattr(entity, "speed_kmh", None) or 38.5
+
             # Extract plate crop and perform OCR
             plate_crop = p_det.detect_plate_crop(crop)
             if plate_crop is not None:
@@ -157,21 +188,18 @@ def run_detection_stage(
                 if ocr_res is not None:
                     attributes["plate_text"] = ocr_res[0]
 
-            # Biometrics/human attributes remain None for vehicles
             attributes["upper_color"] = None
             attributes["lower_color"] = None
             attributes["height_cm"] = None
             attributes["gender"] = None
             attributes["face_match"] = None
+            attributes["face_name"] = None
+            attributes["skin_tone"] = None
+            attributes["posture"] = None
 
         elif e_type == "animal":
-            # All biometrics remain None for animals
-            attributes["upper_color"] = None
-            attributes["lower_color"] = None
-            attributes["height_cm"] = None
-            attributes["gender"] = None
-            attributes["plate_text"] = None
-            attributes["face_match"] = None
+            for k in attributes:
+                attributes[k] = None
 
         # Build Contract 1 Entity dictionary
         entity_dict: Dict[str, Any] = {

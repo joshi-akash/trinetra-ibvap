@@ -19,6 +19,7 @@ class CameraRegistry(Base):
     trust_score = Column(Float, default=1.0)
     status = Column(String, default="online")
     last_tamper_check = Column(DateTime, default=utcnow)
+    stream_url = Column(String, nullable=True)
 
     entities = relationship("EntityLog", back_populates="camera")
 
@@ -27,7 +28,7 @@ class EntityLog(Base):
     __tablename__ = "entity_log"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    camera_id = Column(String, ForeignKey("camera_registry.camera_id"), index=True)
+    camera_id = Column(String, ForeignKey("camera_registry.camera_id"), index=True, nullable=True)
     timestamp = Column(DateTime, default=utcnow, index=True)
     entity_type = Column(String, index=True)  # human | vehicle | animal
     upper_color = Column(String, nullable=True)
@@ -35,6 +36,11 @@ class EntityLog(Base):
     height_cm = Column(Float, nullable=True)
     gender = Column(String, nullable=True)  # male | female | neutral
     plate_text = Column(String, nullable=True)
+    vehicle_type = Column(String, nullable=True)  # car | truck | bus | motorcycle
+    direction = Column(String, nullable=True)  # North | South | East | West | North-East ...
+    speed_kmh = Column(Float, nullable=True)  # estimated speed in km/h
+    face_name = Column(String, nullable=True)  # Matched suspect name or Unidentified
+    skin_tone = Column(String, nullable=True)  # fair | wheatish | medium | dark
     location_lat = Column(Float, nullable=True)
     location_lon = Column(Float, nullable=True)
     trajectory_id = Column(String, nullable=True)
