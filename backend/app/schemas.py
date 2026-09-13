@@ -30,6 +30,19 @@ class CameraOut(BaseModel):
     trust_score: float
     status: str
     last_tamper_check: Optional[datetime] = None
+    stream_url: Optional[str] = None
+
+class CameraCreate(BaseModel):
+    camera_id: str
+    location_lat: Optional[float] = 29.9457
+    location_lon: Optional[float] = 78.1642
+    status: Optional[str] = "online"
+    trust_score: Optional[float] = 0.95
+    geo_fence_polygon: Optional[List[List[float]]] = None
+    stream_url: Optional[str] = None
+
+class StreamUpdateRequest(BaseModel):
+    stream_url: str
 
 class CalibrationPoint(BaseModel):
     pixel_x: float
@@ -46,7 +59,7 @@ class GeoFencePolygon(BaseModel):
 # --- Entity Log Schemas ---
 class EntityLogOut(BaseModel):
     id: str
-    camera_id: str
+    camera_id: Optional[str] = None
     timestamp: datetime
     entity_type: Optional[str] = None
     upper_color: Optional[str] = None
@@ -54,6 +67,11 @@ class EntityLogOut(BaseModel):
     height_cm: Optional[float] = None
     gender: Optional[str] = None
     plate_text: Optional[str] = None
+    vehicle_type: Optional[str] = None
+    direction: Optional[str] = None
+    speed_kmh: Optional[float] = None
+    face_name: Optional[str] = None
+    skin_tone: Optional[str] = None
     location: Optional[Dict[str, float]] = None
     trajectory_id: Optional[str] = None
     is_alert: bool
@@ -155,6 +173,11 @@ class EntityAttributes(BaseModel):
     height_cm: Optional[float] = None
     gender: Optional[str] = None
     plate_text: Optional[str] = None
+    vehicle_type: Optional[str] = None
+    direction: Optional[str] = None
+    speed_kmh: Optional[float] = None
+    face_name: Optional[str] = None
+    skin_tone: Optional[str] = None
     face_match: Optional[FaceMatch] = None
     posture: Optional[str] = None
     props: List[str] = Field(default_factory=list)

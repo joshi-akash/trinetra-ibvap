@@ -41,6 +41,11 @@ app.mount("/storage/clips", StaticFiles(directory=str(settings.CLIPS_DIR)), name
 app.mount("/storage/thumbnails", StaticFiles(directory=str(settings.THUMBNAILS_DIR)), name="thumbnails")
 app.mount("/storage/exports", StaticFiles(directory=str(settings.EXPORTS_DIR)), name="exports")
 
+# Mount test footage & uploaded CCTV videos for live playback
+FOOTAGE_DIR = PROJECT_ROOT / "test_footage"
+FOOTAGE_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/footage", StaticFiles(directory=str(FOOTAGE_DIR)), name="footage")
+
 from pathlib import Path
 from fastapi.responses import FileResponse
 STATIC_DIR = Path(__file__).resolve().parent / "static"

@@ -438,3 +438,70 @@ def test_forensic_search_vernacular(client, commander_token):
     # Should find our red shirt intruder
     assert data["total_count"] >= 1
     assert any(r["upper_color"] == "red" for r in data["results"])
+
+
+# --- 11. Camera Removal & Live Stream URL Tests ---
+def test_camera_create_and_delete_with_linked_entity(client, commander_token):
+    # 1. Register new camera with stream_url
+    cam_res = client.post(
+        "/api/cameras",
+        headers={"Authorization": f"Bearer {commander_token}"},
+        json={
+            "camera_id": "CAM-TEST-DELETE",
+            "location_lat": 29.95,
+            "location_lon": 78.17,
+            "status": "online",
+            "trust_score": 0.96,
+            "stream_url": "https://example.com/live.m3u8"
+        }
+    )
+    assert cam_res.status_code == 200
+    assert "registered successfully" in cam_res.json()["message"]
+
+    # 2. Ingest an entity referencing this camera
+    ingest_res = client.post(
+        "/api/entities/ingest",
+        json={
+            "camera_id": "CAM-TEST-DELETE",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "frame_ref": "test_del.jpg",
+            "frame_quality": {"low_light": False, "enhanced": False, "tamper_signal": {"is_tampered": False}},
+            "entities": [{
+                "track_id": "trk-del-1",
+                "entity_type": "vehicle",
+                "bbox": [10.0, 10.0, 50.0, 50.0],
+                "confidence": 0.92,
+                "attributes": {"vehicle_type": "car", "plate_text": "DL01TEST"},
+                "location": {"lat": 29.95, "lon": 78.17}
+            }]
+        }
+    )
+    assert ingest_res.status_code == 200
+
+    # 3. Delete the camera (must not fail foreign key constraints)
+    del_res = client.delete(
+        "/api/cameras/CAM-TEST-DELETE",
+        headers={"Authorization": f"Bearer {commander_token}"}
+    )
+    assert del_res.status_code == 200
+    assert "removed from registry" in del_res.json()["message"]
+
+    # 4. Confirm camera is no longer in camera registry
+    cameras = client.get("/api/cameras", headers={"Authorization": f"Bearer {commander_token}"}).json()
+    assert all(c["camera_id"] != "CAM-TEST-DELETE" for c in cameras)
+
+
+def test_camera_stream_url_update(client, commander_token):
+    res = client.put(
+        "/api/cameras/CAM-01/stream",
+        headers={"Authorization": f"Bearer {commander_token}"},
+        json={"stream_url": "/footage/cctv_sample.mp4"}
+    )
+    assert res.status_code == 200
+    assert "Stream URL updated" in res.json()["message"]
+
+    # Verify stream_url in camera list
+    cameras = client.get("/api/cameras", headers={"Authorization": f"Bearer {commander_token}"}).json()
+    cam01 = next(c for c in cameras if c["camera_id"] == "CAM-01")
+    assert cam01["stream_url"] == "/footage/cctv_sample.mp4"
+
