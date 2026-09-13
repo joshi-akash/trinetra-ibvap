@@ -61,18 +61,30 @@ def resolve_stream_source(url_or_path: str) -> str:
         try:
             import yt_dlp
             ydl_opts = {
-                "format": "best[ext=mp4]/best",
                 "quiet": True,
                 "no_warnings": True,
                 "noplaylist": True,
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(clean, download=False)
-                if "url" in info:
-                    logger.info(f"Resolved YouTube link '{clean}' via yt-dlp to stream URL")
-                    return info["url"]
-                elif "formats" in info and len(info["formats"]) > 0:
-                    return info["formats"][-1]["url"]
+                if info:
+                    if info.get("hls_url"):
+                        logger.info(f"Resolved YouTube hls_url '{clean}'")
+                        return info["hls_url"]
+                    if info.get("manifest_url"):
+                        logger.info(f"Resolved YouTube manifest_url '{clean}'")
+                        return info["manifest_url"]
+                    fmts = info.get("formats", [])
+                    m3u8_fmts = [f for f in fmts if "m3u8" in f.get("protocol", "") and f.get("vcodec") != "none"]
+                    if m3u8_fmts:
+                        logger.info(f"Resolved YouTube m3u8 format '{clean}'")
+                        return m3u8_fmts[-1].get("url")
+                    mp4_fmts = [f for f in fmts if f.get("vcodec") != "none" and f.get("url") and ("http" in f.get("protocol", "") or f.get("ext") == "mp4")]
+                    if mp4_fmts:
+                        logger.info(f"Resolved YouTube mp4 format '{clean}'")
+                        return mp4_fmts[-1].get("url")
+                    if "url" in info:
+                        return info["url"]
         except Exception as e:
             logger.warning(f"yt-dlp stream resolution failed for '{clean}': {e}")
             return clean

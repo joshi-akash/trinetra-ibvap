@@ -1385,7 +1385,7 @@
 
               <!-- HTML5 Video element for playing live CCTV or uploaded footage -->
               ${hasStream ? `
-                <video class="cam-video" id="video-cam-${c.camera_id}" ${!c.stream_url.includes('.m3u8') ? `src="${c.stream_url}"` : ''} autoplay loop muted playsinline 
+                <video class="cam-video" id="video-cam-${c.camera_id}" ${(!c.stream_url.includes('.m3u8') && !c.stream_url.includes('hls_playlist')) ? `src="${c.stream_url}"` : ''} autoplay loop muted playsinline 
                   onloadeddata="this.style.display='block'; const s = document.getElementById('standby-${c.camera_id}'); if (s) s.style.display='none'; const err = document.getElementById('vid-err-${c.camera_id}'); if (err) err.style.display='none';"
                   onerror="if(!this.dataset.hls){ this.style.display='none'; const s = document.getElementById('standby-${c.camera_id}'); if (s) s.style.display='flex'; const err = document.getElementById('vid-err-${c.camera_id}'); if (err) err.style.display='flex'; }"
                 ></video>
@@ -1413,9 +1413,10 @@
           `;
         });
 
-        // Initialize HLS for .m3u8 streams
+        // Initialize HLS for .m3u8 and GoogleVideo/YouTube HLS streams
         activeCameras.forEach(c => {
-          if (c.stream_url && c.stream_url.includes('.m3u8')) {
+          const isHlsStream = c.stream_url && (c.stream_url.includes('.m3u8') || c.stream_url.includes('hls_playlist') || c.stream_url.includes('/hls/'));
+          if (isHlsStream) {
             const vid = document.getElementById(`video-cam-${c.camera_id}`);
             const errBadge = document.getElementById(`vid-err-${c.camera_id}`);
             const standby = document.getElementById(`standby-${c.camera_id}`);
@@ -1525,50 +1526,71 @@
               const attrs = e.attributes || {};
               const conf = Math.round((e.confidence || 0.85) * 100);
 
+              const isAlert = attrs.is_alert === true;
+              const isSuspect = attrs.face_name && attrs.face_name !== 'Unidentified';
+              const isThreat = isAlert || isSuspect;
+
               if (e.entity_type === 'human') {
-                const isSuspect = attrs.face_name && attrs.face_name !== 'Unidentified';
-                const cls = isSuspect ? 'threat' : 'human';
-                const nameTag = isSuspect ? `🔴 SUSPECT: ${attrs.face_name} [${conf}%]` : `👤 Person [${conf}%]`;
+                const cls = isThreat ? 'threat' : 'human';
+                let nameTag = '';
+                if (isAlert) {
+                  nameTag = `🚨 ALERT: ${(attrs.rule_fired || 'SUSPICIOUS ACTIVITY').toUpperCase()} [${conf}%]`;
+                } else if (isSuspect) {
+                  nameTag = `🔴 SUSPECT: ${attrs.face_name} [${conf}%]`;
+                } else {
+                  nameTag = `👤 Person [${conf}%]`;
+                }
+
                 const heightStr = attrs.height_cm ? `${Math.round(attrs.height_cm)} cm` : '172 cm';
-                const postureStr = attrs.posture || 'standing';
+                const postureStr = (attrs.posture || 'standing').toUpperCase();
                 const colorsStr = (attrs.upper_color && attrs.upper_color !== 'unknown') ? `${attrs.upper_color}/${attrs.lower_color || 'dark'}` : 'Visible';
                 const skinStr = attrs.skin_tone ? `${attrs.skin_tone}` : '';
+                const propsStr = (attrs.props && attrs.props.length > 0) ? ` | ⚠️ PROPS: ${attrs.props.join(', ').toUpperCase()}` : '';
 
                 html += `
                   <div class="bounding-box ${cls}" style="left:${left.toFixed(1)}%; top:${top.toFixed(1)}%; width:${width.toFixed(1)}%; height:${height.toFixed(1)}%;">
                     <span class="bbox-tag ${cls}">${nameTag}</span>
-                    <div class="bbox-meta">${postureStr} (${heightStr}) ${skinStr ? '| ' + skinStr : ''} | ${colorsStr}</div>
+                    <div class="bbox-meta">${postureStr} (${heightStr}) ${skinStr ? '| ' + skinStr : ''} ${propsStr} | ${colorsStr}</div>
                   </div>
                 `;
               } else if (e.entity_type === 'vehicle') {
+                const cls = isAlert ? 'threat' : 'vehicle';
                 const vType = (attrs.vehicle_type || 'Vehicle').toUpperCase();
                 const vColor = attrs.vehicle_color || 'Vehicle';
                 const plate = attrs.plate_text ? `ANPR: ${attrs.plate_text}` : 'ANPR Scanned';
                 const speed = attrs.speed_kmh ? `${Math.round(attrs.speed_kmh)} km/h` : '35 km/h';
                 const dir = attrs.direction || '';
+                const nameTag = isAlert ? `🚨 ALERT: ${(attrs.rule_fired || 'BREACH').toUpperCase()} [${conf}%]` : `🚗 ${vType} (${vColor}) [${conf}%]`;
 
                 html += `
-                  <div class="bounding-box vehicle" style="left:${left.toFixed(1)}%; top:${top.toFixed(1)}%; width:${width.toFixed(1)}%; height:${height.toFixed(1)}%;">
-                    <span class="bbox-tag vehicle">🚗 ${vType} (${vColor}) [${conf}%]</span>
+                  <div class="bounding-box ${cls}" style="left:${left.toFixed(1)}%; top:${top.toFixed(1)}%; width:${width.toFixed(1)}%; height:${height.toFixed(1)}%;">
+                    <span class="bbox-tag ${cls}">${nameTag}</span>
                     <div class="bbox-meta">${plate} ${speed ? '| ' + speed : ''} ${dir}</div>
                   </div>
                 `;
               } else {
+                const cls = isAlert ? 'threat' : '';
+                const nameTag = isAlert ? `🚨 ALERT: ${(attrs.rule_fired || 'BREACH').toUpperCase()} [${conf}%]` : `🎯 ${e.entity_type.toUpperCase()} [${conf}%]`;
                 html += `
-                  <div class="bounding-box" style="left:${left.toFixed(1)}%; top:${top.toFixed(1)}%; width:${width.toFixed(1)}%; height:${height.toFixed(1)}%;">
-                    <span class="bbox-tag">🎯 ${e.entity_type.toUpperCase()} [${conf}%]</span>
+                  <div class="bounding-box ${cls}" style="left:${left.toFixed(1)}%; top:${top.toFixed(1)}%; width:${width.toFixed(1)}%; height:${height.toFixed(1)}%;">
+                    <span class="bbox-tag ${cls}">${nameTag}</span>
                   </div>
                 `;
               }
             });
 
             layer.innerHTML = html;
+
+            // Automatically refresh alerts panel if any entity triggered an alert
+            if (entities.some(ent => ent.attributes && ent.attributes.is_alert)) {
+              if (typeof loadAlerts === 'function') loadAlerts();
+            }
           }
         } catch (err) {
           console.warn("Detection tick error:", err);
         } finally {
           isProcessing = false;
-          window.activeDetectionTimers[camId] = setTimeout(detectTick, 320);
+          window.activeDetectionTimers[camId] = setTimeout(detectTick, 350);
         }
       }
 
@@ -2060,7 +2082,8 @@
         if (badgeText) badgeText.innerText = `OPTICAL FEED: ${camId} (${streamUrl.length > 30 ? streamUrl.substring(0, 27) + '...' : streamUrl})`;
         if (playBtn) playBtn.innerText = '⏸ Pause Video';
 
-        if (streamUrl.includes('.m3u8')) {
+        const isHls = streamUrl.includes('.m3u8') || streamUrl.includes('hls_playlist') || streamUrl.includes('/hls/');
+        if (isHls) {
           vid.dataset.hls = "true";
           if (typeof Hls !== 'undefined' && Hls.isSupported()) {
             geofenceHls = new Hls({ enableWorker: true, lowLatencyMode: true });
@@ -2734,6 +2757,15 @@
       await loadAlerts();
       await loadLogs();
       initWebSocket();
+
+      // Continuous periodic polling for live alerts and forensic intelligence logs
+      setInterval(() => {
+        if (typeof loadAlerts === 'function') loadAlerts();
+      }, 3500);
+
+      setInterval(() => {
+        if (typeof loadLogs === 'function') loadLogs();
+      }, 5000);
     };
   </script>
 </body>

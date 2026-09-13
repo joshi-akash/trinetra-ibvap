@@ -4,9 +4,13 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
 
-from backend.app.config import PROJECT_ROOT
+import time
+import uuid
+from datetime import datetime, timezone
+from backend.app.config import PROJECT_ROOT, settings
 from backend.app.database import get_db
 from backend.app.models import CameraRegistry, EntityLog, User
+from backend.app.rule_engine.geofence_check import geofence_evaluator
 from backend.app.schemas import (
     CameraOut, CameraCreate, CalibrationRequest,
     StreamUpdateRequest, GenericStatusResponse,
@@ -16,6 +20,9 @@ from backend.app.auth.jwt_auth import get_current_user
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Global rate-limiting cache to throttle database writes per (camera_id, track_id, is_alert)
+_ENTITY_LOG_THROTTLE: dict = {}
 
 router = APIRouter(prefix="/api/cameras", tags=["Cameras"])
 
@@ -126,7 +133,40 @@ def resolve_live_stream_url(url: Optional[str]) -> Optional[str]:
     if any(lower_url.endswith(ext) or (ext + "?") in lower_url for ext in [".mp4", ".m3u8", ".webm", ".ogg", ".ts"]):
         return clean_url
 
-    # 2. SkylineWebcams pages (e.g. .../lamai.html)
+    # 2. YouTube streams (youtube.com or youtu.be)
+    if "youtube.com" in lower_url or "youtu.be" in lower_url:
+        try:
+            import yt_dlp
+            ydl_opts = {
+                "quiet": True,
+                "no_warnings": True,
+                "extract_flat": False,
+                "noplaylist": True,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(clean_url, download=False)
+                if info:
+                    if info.get("hls_url"):
+                        logger.info(f"Resolved YouTube hls_url '{clean_url}'")
+                        return info["hls_url"]
+                    if info.get("manifest_url"):
+                        logger.info(f"Resolved YouTube manifest_url '{clean_url}'")
+                        return info["manifest_url"]
+                    fmts = info.get("formats", [])
+                    m3u8_fmts = [f for f in fmts if "m3u8" in f.get("protocol", "") and f.get("vcodec") != "none"]
+                    if m3u8_fmts:
+                        logger.info(f"Resolved YouTube m3u8 format '{clean_url}'")
+                        return m3u8_fmts[-1].get("url")
+                    mp4_fmts = [f for f in fmts if f.get("vcodec") != "none" and f.get("url") and ("http" in f.get("protocol", "") or f.get("ext") == "mp4")]
+                    if mp4_fmts:
+                        logger.info(f"Resolved YouTube mp4 format '{clean_url}'")
+                        return mp4_fmts[-1].get("url")
+                    if info.get("url"):
+                        return info["url"]
+        except Exception as e:
+            logger.warning(f"Failed to resolve YouTube URL '{clean_url}': {e}")
+
+    # 3. SkylineWebcams pages (e.g. .../lamai.html)
     if "skylinewebcams.com" in lower_url:
         try:
             import urllib.request
@@ -302,7 +342,16 @@ def detect_camera_frame(
         logger.warning(f"Detection stage error: {e}")
         raw_entities = []
 
+    camera = db.query(CameraRegistry).filter(CameraRegistry.camera_id == camera_id).first()
+    geofence_coords = camera.geo_fence_polygon if camera else None
+    cam_lat = camera.location_lat if (camera and camera.location_lat) else 29.9457
+    cam_lon = camera.location_lon if (camera and camera.location_lon) else 78.1642
+
     detected_out = []
+    now_ts = time.time()
+    thumb_dir = Path(settings.STORAGE_DIR) / "thumbnails"
+    thumb_dir.mkdir(parents=True, exist_ok=True)
+
     for ent in raw_entities:
         bbox = [int(v) for v in ent.get("bbox", [0, 0, 0, 0])]
         attrs = ent.get("attributes", {})
@@ -317,10 +366,163 @@ def detect_camera_frame(
             except (ValueError, TypeError):
                 tid_val = str(raw_tid)
 
+        ent_type = ent.get("entity_type", "unknown")
+        conf_val = round(float(ent.get("confidence", 0.85)), 2)
+
+        # 1. Coordinate estimation & Footpoint
+        x_foot = (bbox[0] + bbox[2]) / 2.0
+        y_foot = float(bbox[3])
+        ent_lat = cam_lat + ((360 - y_foot) / 360.0) * 0.0008
+        ent_lon = cam_lon + ((x_foot - 320) / 640.0) * 0.0008
+
+        # 2. Geofence evaluation (pixel or geographic coordinates)
+        is_breach = False
+        if geofence_coords and len(geofence_coords) >= 3:
+            first_pt = geofence_coords[0]
+            if first_pt[0] > 180 or first_pt[0] < -180:
+                is_breach = geofence_evaluator.bbox_intersects_geofence(bbox, None, geofence_coords)
+            else:
+                is_breach = geofence_evaluator.is_inside_geofence(ent_lat, ent_lon, geofence_coords)
+
+        # 3. Behavioral and Prop threat checks
+        props = attrs.get("props", [])
+        if not isinstance(props, list):
+            props = []
+
+        posture = (attrs.get("posture") or "standing").lower().strip()
+
+        # Weapon possession check (illegal weapon)
+        has_weapon = any(w in props for w in ["weapon", "knife", "gun", "rifle", "firearm"])
+
+        # Big bag carrying check (unattended or suspicious large backpack / suitcase)
+        has_big_bag = any(b in props for b in ["large_backpack", "backpack", "suitcase", "handbag", "big_bag"])
+
+        # Suspicious body posture check (crouching, prone/crawling, climbing)
+        has_sus_posture = posture in ("crouching", "prone", "crawling", "climbing", "sprinting")
+
+        # Suspect face match check
+        face_name = attrs.get("face_name")
+        is_suspect = bool(face_name and face_name != "Unidentified")
+
+        # 4. Decision Bifurcation Logic
+        is_alert = False
+        alert_type = None
+        rule_fired = None
+        threat_score = 0.10
+
+        if has_weapon and (is_breach or has_sus_posture):
+            is_alert = True
+            alert_type = "correlated"
+            rule_fired = f"multi_modal_corroboration: illegal_weapon & {'perimeter_breach' if is_breach else 'suspicious_posture'}"
+            threat_score = 0.98
+        elif has_weapon:
+            is_alert = True
+            alert_type = "behavior"
+            rule_fired = "threat_prop: weapon (illegal weapon possession)"
+            threat_score = 0.95
+        elif has_big_bag and is_breach:
+            is_alert = True
+            alert_type = "correlated"
+            rule_fired = "multi_modal_corroboration: suspicious_bag & perimeter_breach"
+            threat_score = 0.90
+        elif has_big_bag:
+            is_alert = True
+            alert_type = "behavior"
+            rule_fired = "threat_prop: large_backpack (suspicious big bag / baggage)"
+            threat_score = 0.85
+        elif has_sus_posture and is_breach:
+            is_alert = True
+            alert_type = "correlated"
+            rule_fired = f"multi_modal_corroboration: breach & {posture}_posture"
+            threat_score = 0.92
+        elif has_sus_posture:
+            is_alert = True
+            alert_type = "behavior"
+            rule_fired = f"suspicious_posture: {posture}"
+            threat_score = 0.82 if posture == "crouching" else 0.88
+        elif is_breach:
+            is_alert = True
+            alert_type = "geo_fence"
+            rule_fired = "geofence_polygon_breach"
+            threat_score = 0.88
+        elif is_suspect:
+            is_alert = True
+            alert_type = "behavior"
+            rule_fired = f"suspect_face_match: {face_name}"
+            threat_score = 0.92
+
+        # 5. Database Persistence with sensible rate throttling
+        throttle_key = f"{camera_id}_{tid_val or 'notrk'}_{is_alert}"
+        last_logged = _ENTITY_LOG_THROTTLE.get(throttle_key, 0.0)
+        throttle_interval = 3.5 if is_alert else 2.5
+
+        if (now_ts - last_logged) >= throttle_interval:
+            _ENTITY_LOG_THROTTLE[throttle_key] = now_ts
+            ent_id = str(uuid.uuid4())
+            thumb_rel = None
+
+            # For alerts or notable entities, save a thumbnail crop
+            if is_alert:
+                thumb_name = f"thumb_{ent_id[:8]}.webp"
+                thumb_file = thumb_dir / thumb_name
+                try:
+                    x1, y1, x2, y2 = bbox
+                    pad = 12
+                    crop = frame[max(0, y1-pad):min(h, y2+pad), max(0, x1-pad):min(w, x2+pad)]
+                    if crop.size > 0:
+                        cv2.imwrite(str(thumb_file), crop, [cv2.IMWRITE_WEBP_QUALITY, 80])
+                        thumb_rel = f"/storage/thumbnails/{thumb_name}"
+                except Exception as e:
+                    logger.warning(f"Error saving alert thumbnail: {e}")
+
+            clip_path = camera.stream_url if (camera and camera.stream_url) else None
+
+            log_entry = EntityLog(
+                id=ent_id,
+                camera_id=camera_id,
+                timestamp=datetime.now(timezone.utc),
+                entity_type=ent_type,
+                upper_color=attrs.get("upper_color"),
+                lower_color=attrs.get("lower_color"),
+                height_cm=attrs.get("height_cm"),
+                gender=attrs.get("gender"),
+                plate_text=attrs.get("plate_text"),
+                vehicle_type=attrs.get("vehicle_type"),
+                direction=attrs.get("direction"),
+                speed_kmh=attrs.get("speed_kmh"),
+                face_name=attrs.get("face_name"),
+                skin_tone=attrs.get("skin_tone"),
+                location_lat=ent_lat,
+                location_lon=ent_lon,
+                trajectory_id=str(tid_val) if tid_val is not None else None,
+                is_alert=is_alert,
+                alert_type=alert_type,
+                confidence_score=conf_val,
+                clip_path=clip_path,
+                thumbnail_path=thumb_rel,
+                retention_tier="protected" if is_alert else "passive",
+                rule_fired=rule_fired,
+                acknowledged=False,
+                is_low_light=False,
+                posture=posture
+            )
+            try:
+                db.add(log_entry)
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                logger.warning(f"Failed to commit entity log: {e}")
+
+        # Add threat annotations to attributes for UI rendering
+        attrs["is_alert"] = is_alert
+        attrs["alert_type"] = alert_type
+        attrs["rule_fired"] = rule_fired
+        attrs["threat_score"] = threat_score
+
         detected_out.append(DetectedEntityOut(
-            entity_type=ent.get("entity_type", "unknown"),
+            entity_type=ent_type,
             bbox=bbox,
-            confidence=round(float(ent.get("confidence", 0.85)), 2),
+            confidence=conf_val,
             track_id=tid_val,
             attributes=attrs
         ))

@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 COCO_HUMAN_IDS = {0}  # person
 COCO_VEHICLE_IDS = {1, 2, 3, 5, 7}  # bicycle, car, motorcycle, bus, truck
 COCO_ANIMAL_IDS = {14, 15, 16, 17, 18, 19, 20, 21, 22, 23}  # bird, cat, dog, horse, sheep, cow, elephant, bear, zebra, giraffe
+COCO_WEAPON_IDS = {43, 76}  # knife, scissors
+COCO_BAG_IDS = {24, 26, 28}  # backpack, handbag, suitcase
 
 # Fine-tuned border custom class mapping
 BORDER_CLASS_MAP = {
@@ -57,7 +59,18 @@ BORDER_CLASS_MAP = {
     "cat": "animal",
     "bird": "animal",
     "weapon": "weapon",
+    "knife": "weapon",
+    "gun": "weapon",
+    "rifle": "weapon",
+    "pistol": "weapon",
+    "firearm": "weapon",
     "large_backpack": "large_backpack",
+    "backpack": "large_backpack",
+    "suitcase": "large_backpack",
+    "handbag": "large_backpack",
+    "bag": "large_backpack",
+    "luggage": "large_backpack",
+    "duffel": "large_backpack",
 }
 
 
@@ -172,6 +185,10 @@ class YOLOv8Detector:
             return "vehicle"
         elif class_id in COCO_ANIMAL_IDS:
             return "animal"
+        elif class_id in COCO_WEAPON_IDS:
+            return "weapon"
+        elif class_id in COCO_BAG_IDS:
+            return "large_backpack"
         return None
 
     def detect(
@@ -206,6 +223,9 @@ class YOLOv8Detector:
                     verbose=False,
                 )
 
+                raw_entities: List[DetectedEntity] = []
+                detected_threat_props: List[Dict[str, Any]] = []
+
                 for r in pred_results:
                     boxes = r.boxes
                     if boxes is None:
@@ -217,16 +237,12 @@ class YOLOv8Detector:
                         cls_name = r.names.get(cls_id, "") if hasattr(r, "names") else ""
                         entity_type = self.map_class_id(cls_id, cls_name)
 
-                        # Filter strictly to human, vehicle, animal
-                        if entity_type not in ("human", "vehicle", "animal"):
+                        if not entity_type:
                             continue
 
                         score = float(box.conf[0].item())
                         if score < conf:
                             continue
-
-                        # Temporary ID before tracking pass
-                        t_id = f"TMP-{uuid.uuid4().hex[:8]}"
 
                         # Coordinates
                         xyxy = box.xyxy[0].cpu().numpy().astype(int)
@@ -234,12 +250,26 @@ class YOLOv8Detector:
                         y1 = max(0, min(h - 1, int(xyxy[1])))
                         x2 = max(x1 + 1, min(w, int(xyxy[2])))
                         y2 = max(y1 + 1, min(h, int(xyxy[3])))
-
                         bbox = [x1, y1, x2, y2]
+
+                        # Collect weapons & large bags as threat props
+                        if entity_type in ("weapon", "large_backpack"):
+                            detected_threat_props.append({
+                                "prop_type": entity_type,
+                                "bbox": bbox,
+                                "conf": score,
+                                "raw_name": cls_name
+                            })
+                            continue
+
+                        if entity_type not in ("human", "vehicle", "animal"):
+                            continue
+
+                        t_id = f"TMP-{uuid.uuid4().hex[:8]}"
                         foot_pt = compute_foot_point(bbox)
                         crop = frame[y1:y2, x1:x2].copy()
 
-                        results.append(
+                        raw_entities.append(
                             DetectedEntity(
                                 track_id=t_id,
                                 entity_type=entity_type,
@@ -250,7 +280,21 @@ class YOLOv8Detector:
                                 raw_class_name=cls_name,
                             )
                         )
-                return results
+
+                # Associate threat props with overlapping/nearby persons
+                for h_ent in raw_entities:
+                    if h_ent.entity_type == "human":
+                        hx1, hy1, hx2, hy2 = h_ent.bbox
+                        pad_x = (hx2 - hx1) * 0.35
+                        pad_y = (hy2 - hy1) * 0.25
+                        for p in detected_threat_props:
+                            px_c = (p["bbox"][0] + p["bbox"][2]) / 2.0
+                            py_c = (p["bbox"][1] + p["bbox"][3]) / 2.0
+                            if (hx1 - pad_x <= px_c <= hx2 + pad_x) and (hy1 - pad_y <= py_c <= hy2 + pad_y):
+                                if p["prop_type"] not in h_ent.extra_props:
+                                    h_ent.extra_props.append(p["prop_type"])
+
+                return raw_entities
             except Exception as e:
                 logger.error("Error during YOLOv8 detection inference: %s. Falling back.", e)
 
