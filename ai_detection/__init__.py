@@ -117,17 +117,29 @@ def run_detection_stage(
     # Initialize height estimator if calibration data provided
     height_estimator = PerspectiveHeightEstimator(calibration_data) if calibration_data else None
 
-    # Step 0: Tactical Low-Light & Zero-Lux Enhancement
-    # If the frame has low luminance (< 55) or is_low_light is flagged,
-    # enhance the frame before detection so YOLO, FRS, and ANPR detect entities in dimmest light.
+    # Step 0: Tactical Low-Light & Dynamic Contrast Enhancement
+    # If the frame has low luminance (< 60) or is_low_light is flagged, apply Zero-DCE.
+    # If the frame has low contrast or medium-dim lighting, apply adaptive CLAHE in LAB space.
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if (len(frame.shape) == 3 and frame.shape[2] == 3) else frame
     mean_lum = float(np.mean(gray))
-    if is_low_light or mean_lum < 55.0:
+    std_lum = float(np.std(gray))
+
+    if is_low_light or mean_lum < 60.0:
         try:
             from ai_behavior.night_enhancement.zero_dce import ZeroDCE
             _zero_dce = ZeroDCE()
             enhanced_frame, was_enhanced = _zero_dce.enhance(frame)
             processing_frame = enhanced_frame if was_enhanced else frame
+        except Exception:
+            processing_frame = frame
+    elif std_lum < 42.0 or mean_lum < 80.0:
+        try:
+            lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+            l, a, b = cv2.split(lab)
+            clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+            cl = clahe.apply(l)
+            limg = cv2.merge((cl, a, b))
+            processing_frame = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
         except Exception:
             processing_frame = frame
     else:

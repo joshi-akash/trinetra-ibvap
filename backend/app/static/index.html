@@ -564,6 +564,9 @@
       <div class="nav-btn" onclick="showTab('camera-setup')">
         <span>⚙️ Camera Setup & Fleet</span>
       </div>
+      <div class="nav-btn" onclick="showTab('admin-dashboard')">
+        <span>🛡️ Admin Command Center</span>
+      </div>
     </nav>
 
     <!-- Main Content Area -->
@@ -634,6 +637,7 @@
 
           <input type="text" id="log-search-box" class="text-input" placeholder="Search plate, suspect name, posture..." style="flex:1;" onkeydown="if(event.key==='Enter') loadLogs()">
           <button class="btn btn-primary" onclick="loadLogs()">Filter</button>
+          <button class="btn btn-danger" onclick="purgeAllLogsConfirm()" title="Delete all logs from database">🗑️ Purge All Logs</button>
         </div>
 
         <div class="table-container">
@@ -800,6 +804,170 @@
             </div>
             <div id="camera-fleet-list" style="display:flex; flex-direction:column; gap:8px; max-height:480px; overflow-y:auto;">
               <!-- Camera cards populated by JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 6: Admin Command Center & System Controls -->
+      <div id="tab-admin-dashboard" class="tab-view">
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <!-- Top Telemetry Cards -->
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
+            <div class="stat-card" style="border-left: 4px solid #38bdf8;">
+              <span class="stat-title">System Operational Status</span>
+              <span class="stat-val" style="color:#10b981; font-size:1.2rem;">● ACTIVE / SOVEREIGN</span>
+              <span class="stat-desc">Air-Gapped Outpost Defense</span>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #ef4444;">
+              <span class="stat-title">Total Detections & Alerts</span>
+              <span class="stat-val" id="admin-stat-entities" style="color:#f87171;">0</span>
+              <span class="stat-desc">Persisted in database</span>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #f59e0b;">
+              <span class="stat-title">Active AI Model</span>
+              <span class="stat-val" id="admin-stat-model" style="color:#fbbf24; font-size:1rem;">YOLOv8 Tactical</span>
+              <span class="stat-desc">Inference Engine Online</span>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #10b981;">
+              <span class="stat-title">Registered Fleet Strength</span>
+              <span class="stat-val" id="admin-stat-cams" style="color:#38bdf8;">0</span>
+              <span class="stat-desc">Configured Sector Cameras</span>
+            </div>
+          </div>
+
+          <!-- Studio Layout: Controls & RBAC -->
+          <div class="studio-layout">
+            <!-- Left Column: Tactical Data Maintenance & Purge -->
+            <div class="canvas-card">
+              <h3 style="font-size:1rem; color:#fff; display:flex; align-items:center; gap:8px;">
+                <span>🛠️ Tactical Data & Storage Maintenance</span>
+              </h3>
+              <p style="font-size:0.75rem; color:var(--text-muted);">
+                Administrative operations for purging test records, generating signed HQ export bundles, and hot-reloading weights.
+              </p>
+
+              <div style="background:#070d18; border:1px solid var(--border-color); border-radius:6px; padding:14px; display:flex; flex-direction:column; gap:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                  <div>
+                    <div style="font-weight:700; color:#f87171; font-size:0.85rem;">🗑️ Emergency / Operational Log Purge</div>
+                    <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">
+                      Clears all entity detections, vehicle records, and alerts. Preserves an immutable entry in the audit ledger.
+                    </div>
+                  </div>
+                  <button class="btn btn-danger" onclick="purgeAllLogsConfirm()" style="padding:6px 14px; font-weight:700;">
+                    Purge All Existing Logs
+                  </button>
+                </div>
+
+                <hr style="border-color:var(--border-color); border-style:dashed;">
+
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                  <div>
+                    <div style="font-weight:700; color:#cbd5e1; font-size:0.85rem;">⚡ AI Detection Engine Hot-Reload</div>
+                    <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">
+                      Reloads the active YOLOv8 detector singleton with custom trained weights from <code>models/yolov8_custom.pt</code>.
+                    </div>
+                  </div>
+                  <button class="btn btn-primary" onclick="applyTrainedWeights()" style="padding:6px 14px;">
+                    Hot-Reload Detector
+                  </button>
+                </div>
+
+                <hr style="border-color:var(--border-color); border-style:dashed;">
+
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                  <div>
+                    <div style="font-weight:700; color:#cbd5e1; font-size:0.85rem;">🧠 Continual AI Model Training Studio</div>
+                    <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">
+                      Fine-tune detector on uploaded CCTV video or live RTSP streams to adapt to outpost camera angles and lighting.
+                    </div>
+                  </div>
+                  <button class="btn" style="background:linear-gradient(135deg, #2563eb, #4f46e5); color:#fff; border-color:#60a5fa;" onclick="openTrainingModal()">
+                    Open Training Studio
+                  </button>
+                </div>
+              </div>
+
+              <!-- AI Sensitivity & Low-Light Config Card -->
+              <h3 style="font-size:0.95rem; color:#fff; margin-top:8px;">🎯 Detection Sensitivity & CLAHE Tuning</h3>
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <div style="background:#070d18; border:1px solid var(--border-color); border-radius:6px; padding:10px;">
+                  <label style="font-size:0.72rem; color:var(--text-muted); display:block; margin-bottom:4px;">YOLOv8 Detection Confidence</label>
+                  <select id="admin-conf-select" class="select-input" style="width:100%;">
+                    <option value="0.20">0.20 — Maximum Recall (Far / Dim Targets)</option>
+                    <option value="0.25" selected>0.25 — Balanced Surveillance (Recommended)</option>
+                    <option value="0.35">0.35 — High Precision (Reduced False Positives)</option>
+                    <option value="0.50">0.50 — Strict (Close-up daylight only)</option>
+                  </select>
+                </div>
+                <div style="background:#070d18; border:1px solid var(--border-color); border-radius:6px; padding:10px;">
+                  <label style="font-size:0.72rem; color:var(--text-muted); display:block; margin-bottom:4px;">Zero-DCE & CLAHE Night Vision</label>
+                  <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
+                    <span style="font-size:0.75rem; color:#10b981; font-weight:700;">● AUTO-ADAPTIVE</span>
+                    <span style="font-size:0.7rem; color:var(--text-muted);">(Dynamic CLAHE + Zero-DCE on luminance &lt; 60)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Column: RBAC Matrix & Audit Security -->
+            <div class="canvas-card">
+              <h3 style="font-size:1rem; color:#fff;">🛡️ Role-Based Access Control (RBAC)</h3>
+              <p style="font-size:0.75rem; color:var(--text-muted);">
+                Sovereign security policy enforced for multi-tiered military command operations.
+              </p>
+
+              <div class="table-container" style="max-height:240px;">
+                <table style="font-size:0.72rem;">
+                  <thead>
+                    <tr>
+                      <th>Account</th>
+                      <th>Role</th>
+                      <th>Feeds</th>
+                      <th>Geofence</th>
+                      <th>Exports</th>
+                      <th>Purge</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><b>commander_user</b></td>
+                      <td><span style="background:#7f1d1d; color:#fca5a5; padding:2px 6px; border-radius:3px; font-weight:700;">COMMANDER</span></td>
+                      <td>✅ Yes</td>
+                      <td>✅ Yes</td>
+                      <td>✅ Yes</td>
+                      <td>✅ Yes</td>
+                    </tr>
+                    <tr>
+                      <td><b>operator_user</b></td>
+                      <td><span style="background:#1e3a5f; color:#93c5fd; padding:2px 6px; border-radius:3px; font-weight:700;">OPERATOR</span></td>
+                      <td>✅ Yes</td>
+                      <td>✅ Yes</td>
+                      <td>❌ No</td>
+                      <td>❌ No</td>
+                    </tr>
+                    <tr>
+                      <td><b>auditor_user</b></td>
+                      <td><span style="background:#064e3b; color:#6ee7b7; padding:2px 6px; border-radius:3px; font-weight:700;">AUDITOR</span></td>
+                      <td>✅ Yes</td>
+                      <td>❌ No</td>
+                      <td>✅ Yes</td>
+                      <td>❌ No</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Air-Gapped Sovereign Chain-of-Custody -->
+              <div style="background:#070d18; border:1px solid var(--border-color); border-radius:6px; padding:12px; font-size:0.72rem; display:flex; flex-direction:column; gap:6px;">
+                <div style="font-weight:700; color:#cbd5e1; display:flex; align-items:center; gap:6px;">
+                  <span style="color:#10b981;">🔒</span> Cryptographic Chain-of-Custody (FR-AUD-01)
+                </div>
+                <div style="color:var(--text-muted); line-height:1.4;">
+                  Every export bundle generates an immutable <b>SHA-256 Merkle hash</b> recorded in the audit ledger. Export packages are packaged as signed ZIP bundles with full JSON metadata, video clips, and keyframe snapshots.
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1073,6 +1241,7 @@
       }
       if (tabId === 'intel-logs') loadLogs();
       if (tabId === 'camera-setup') loadCameraFleet();
+      if (tabId === 'admin-dashboard') loadAdminDashboardStats();
     }
 
     // --- 3. Tactical Audio Siren Synthesizer ---
@@ -1330,7 +1499,7 @@
         try {
           isProcessing = true;
           captureCtx.drawImage(vid, 0, 0, 640, 360);
-          const b64 = captureCanvas.toDataURL('image/jpeg', 0.68);
+          const b64 = captureCanvas.toDataURL('image/jpeg', 0.88);
 
           const res = await fetch(`/api/cameras/${encodeURIComponent(camId)}/detect-frame`, {
             method: 'POST',
@@ -1583,13 +1752,78 @@
 
     async function exportHQ(entityId) {
       if (!token) await login();
-      const res = await fetch(`/api/entities/${entityId}/export`, {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ include_clip: true, channel: 'local_bundle' })
-      });
-      const data = await res.json();
-      alert(`✅ Evidence Package Created!\nExport ID: ${data.export_id}\nSHA-256 Hash: ${data.payload_hash.substring(0, 32)}...`);
+      try {
+        const res = await fetch(`/api/entities/${entityId}/export`, {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ include_clip: true, channel: 'local_bundle' })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // Trigger direct browser download of the ZIP file
+          const dlUrl = data.download_url;
+          const a = document.createElement('a');
+          a.href = dlUrl;
+          a.download = dlUrl.split('/').pop() || `TRINETRA_EXPORT_${entityId}.zip`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+
+          alert(`📦 Evidence Package Downloaded Successfully!\n\nPackage: ${a.download}\nSHA-256 Hash: ${data.payload_hash.substring(0, 32)}...\n\nBundle Includes:\n• metadata.json (Forensic attributes)\n• evidence_snapshot.jpg (Incident keyframe)\n• evidence_clip.mp4 (Recorded CCTV video clip)\n• integrity_hash.txt (Sovereign chain-of-custody proof)`);
+        } else {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          alert(`❌ Failed to export evidence package: ${err.detail || 'Server error'}`);
+        }
+      } catch (e) {
+        alert("❌ Export error: " + e.message);
+      }
+    }
+
+    async function purgeAllLogsConfirm() {
+      const reason = prompt("⚠️ CONFIRM LOG PURGE:\n\nEnter reason for purging all detection and alert records (minimum 4 characters):", "Operator manual reset / test purge");
+      if (!reason || reason.trim().length < 4) {
+        alert("Purge cancelled. A valid reason is required for the sovereign audit ledger.");
+        return;
+      }
+      if (!token) await login();
+      try {
+        const res = await fetch(`/api/entities/purge-all?reason=${encodeURIComponent(reason)}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          alert(`✅ ${data.message}`);
+          await loadLogs();
+          await loadAlerts();
+          loadAdminDashboardStats();
+        } else {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          alert(`❌ Failed to purge logs: ${err.detail || 'Server error'}`);
+        }
+      } catch (e) {
+        alert("❌ Purge error: " + e.message);
+      }
+    }
+
+    async function loadAdminDashboardStats() {
+      if (!token) await login();
+      try {
+        const resEnt = await fetch('/api/entities?limit=500', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (resEnt.ok) {
+          const ents = await resEnt.json();
+          const el = document.getElementById('admin-stat-entities');
+          if (el) el.innerText = ents.length;
+        }
+        const resCam = await fetch('/api/cameras', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (resCam.ok) {
+          const cams = await resCam.json();
+          const el = document.getElementById('admin-stat-cams');
+          if (el) el.innerText = cams.length;
+        }
+      } catch (e) {
+        console.error("Admin stats error:", e);
+      }
     }
 
     // --- 9. Intelligence Logs ---

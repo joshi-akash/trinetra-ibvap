@@ -505,3 +505,17 @@ def test_camera_stream_url_update(client, commander_token):
     cam01 = next(c for c in cameras if c["camera_id"] == "CAM-01")
     assert cam01["stream_url"] == "/footage/cctv_sample.mp4"
 
+def test_purge_all_entities(client, commander_token):
+    # Call purge-all endpoint
+    del_res = client.delete(
+        "/api/entities/purge-all?reason=Testing+purge+functionality",
+        headers={"Authorization": f"Bearer {commander_token}"}
+    )
+    assert del_res.status_code == 200
+    assert del_res.json()["status"] == "success"
+    assert "purged" in del_res.json()["message"]
+
+    # Verify entities are cleared
+    ents = client.get("/api/entities", headers={"Authorization": f"Bearer {commander_token}"}).json()
+    assert len(ents) == 0
+
