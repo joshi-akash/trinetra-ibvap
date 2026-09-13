@@ -370,14 +370,24 @@ names:
 
             # Define telemetry callback
             def on_train_epoch_end(trainer):
-                ep = trainer.epoch + 1
-                self.state.current_epoch = ep
-                # Extract losses if available
-                if hasattr(trainer, "loss_items") and trainer.loss_items is not None:
-                    losses = trainer.loss_items
-                    if len(losses) >= 2:
-                        self.state.box_loss = float(losses[0])
-                        self.state.cls_loss = float(losses[1])
+                try:
+                    ep = trainer.epoch + 1
+                    self.state.current_epoch = ep
+                    # Safely extract losses from dictionary or tensor array
+                    losses = getattr(trainer, "loss_items", None)
+                    if losses is not None:
+                        if isinstance(losses, dict):
+                            self.state.box_loss = float(losses.get("box_loss", losses.get("box", 0.0)))
+                            self.state.cls_loss = float(losses.get("cls_loss", losses.get("cls", 0.0)))
+                        elif hasattr(losses, "__iter__"):
+                            l_items = list(losses)
+                            if len(l_items) > 0:
+                                self.state.box_loss = float(l_items[0])
+                            if len(l_items) > 1:
+                                self.state.cls_loss = float(l_items[1])
+                except Exception as e:
+                    logger.debug("Loss callback parsing error: %s", e)
+
                 # Calculate progress from 55% to 95%
                 epoch_prog = 55.0 + (40.0 * ep / max(1, epochs))
                 self.state.progress = min(95.0, epoch_prog)
