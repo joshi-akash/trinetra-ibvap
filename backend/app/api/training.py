@@ -218,3 +218,31 @@ async def load_preset_dataset(
             "dataset": preset
         }
 
+
+@router.get("/multi-status")
+def get_multi_model_status():
+    """Retrieve real-time telemetry for all models in the batch training pipeline."""
+    from ai_detection.training.multi_model_trainer import get_multi_trainer
+    trainer = get_multi_trainer()
+    return trainer.get_status()
+
+
+@router.post("/start-all-downloaded")
+def start_all_downloaded_training():
+    """Launch simultaneous/sequential fine-tuning for all 4 downloaded surveillance models."""
+    from ai_detection.training.multi_model_trainer import get_multi_trainer
+    trainer = get_multi_trainer()
+    success = trainer.start_batch_training()
+    if not success:
+        return {
+            "status": "conflict",
+            "message": "A multi-model batch training session is already in progress.",
+            "data": trainer.get_status(),
+        }
+    return {
+        "status": "success",
+        "message": "Batch retraining pipeline launched for all 4 surveillance models.",
+        "data": trainer.get_status(),
+    }
+
+

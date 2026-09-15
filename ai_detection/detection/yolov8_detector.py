@@ -64,6 +64,8 @@ BORDER_CLASS_MAP = {
     "rifle": "weapon",
     "pistol": "weapon",
     "firearm": "weapon",
+    "melee": "weapon",
+    "sword": "weapon",
     "large_backpack": "large_backpack",
     "backpack": "large_backpack",
     "suitcase": "large_backpack",

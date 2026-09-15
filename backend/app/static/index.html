@@ -546,6 +546,44 @@
   <!-- Pulsing Siren Alert Banner -->
   <div id="siren-banner">🚨 ACTIVE PERIMETER BREACH DETECTED — AUDIO SIREN ARMED 🚨</div>
 
+  <!-- TEMPORARY LIVE TRAINING MODE HUD BANNER -->
+  <div id="training-live-hud" style="display:none; background:linear-gradient(90deg, #09172e 0%, #0f274a 50%, #09172e 100%); border-bottom:2px solid #38bdf8; padding:8px 18px; z-index:25; flex-shrink:0; box-shadow:0 4px 20px rgba(0,0,0,0.6);">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="live-dot" id="hud-pulse-dot" style="background:#38bdf8; width:10px; height:10px;"></span>
+        <div>
+          <span style="font-size:0.75rem; font-weight:800; color:#38bdf8; letter-spacing:1px; text-transform:uppercase;" id="hud-mode-title">⚡ TEMPORARY AI TRAINING MODE ACTIVE</span>
+          <div id="hud-active-model-desc" style="font-size:0.8rem; font-weight:700; color:#fff; margin-top:1px;">
+            Initializing Multi-Model Retraining Pipeline...
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:16px;">
+        <!-- Overall Progress -->
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:0.68rem; color:#94a3b8; font-weight:700; text-transform:uppercase;">Overall:</span>
+          <div style="width:170px; height:8px; background:#0f172a; border-radius:4px; overflow:hidden; border:1px solid rgba(56,189,248,0.3);">
+            <div id="hud-overall-bar" style="width:0%; height:100%; background:linear-gradient(90deg, #2563eb, #38bdf8); transition:width 0.4s ease;"></div>
+          </div>
+          <span id="hud-overall-pct" style="font-family:var(--font-mono); font-size:0.85rem; font-weight:800; color:#38bdf8;">0.0%</span>
+        </div>
+
+        <button class="btn" style="padding:4px 10px; font-size:0.72rem;" onclick="toggleHudSubmodelsTray()">
+          📋 <span id="hud-tray-toggle-text">Show Sub-Models</span>
+        </button>
+        <button id="hud-dismiss-btn" class="btn btn-muted" style="padding:4px 10px; font-size:0.72rem; display:none;" onclick="dismissTrainingHud()">
+          ✕ Dismiss Training Mode
+        </button>
+      </div>
+    </div>
+
+    <!-- Sub-Models 4-Col Grid -->
+    <div id="hud-submodels-tray" style="display:none; margin-top:10px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.08); grid-template-columns:repeat(4, 1fr); gap:10px;">
+      <!-- Populated dynamically by pollMultiModelTrainingStatus -->
+    </div>
+  </div>
+
   <!-- Government Masthead & Operational Controls -->
   <header>
     <div class="brand-section">
@@ -564,7 +602,8 @@
       <button id="siren-toggle-btn" class="btn" onclick="toggleSirenMute()">🔊 Siren: Armed</button>
       <button id="night-vision-global-btn" class="btn" onclick="toggleGlobalNightVision()">🌙 Night-Vision: OFF</button>
       <button class="btn btn-danger" onclick="triggerSimulatedBreach()">🚨 Test Breach</button>
-      <button class="btn" style="background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); border-color:#60a5fa; color:#fff; font-weight:700;" onclick="openTrainingModal()">🧠 Train Model</button>
+      <button class="btn" id="header-batch-train-btn" style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); border-color:#34d399; color:#fff; font-weight:700;" onclick="triggerBatchRetraining()">⚡ Retrain All Models</button>
+      <button class="btn" style="background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); border-color:#60a5fa; color:#fff; font-weight:700;" onclick="openTrainingModal()">🧠 Train Console</button>
       <a href="/docs" target="_blank" class="btn">📖 API Specs</a>
     </div>
   </header>
@@ -2946,6 +2985,151 @@
         applyBtn.innerText = "⚡ Hot-Reload Active Fleet";
       }
     }
+
+    // --- 12B. Temporary Multi-Model Training HUD & Batch Coordinator ---
+    let hudSubmodelsOpen = false;
+    let hudDismissed = false;
+    let hudAutoCompleteTimer = null;
+
+    function toggleHudSubmodelsTray() {
+      hudSubmodelsOpen = !hudSubmodelsOpen;
+      const tray = document.getElementById('hud-submodels-tray');
+      const label = document.getElementById('hud-tray-toggle-text');
+      if (hudSubmodelsOpen) {
+        tray.style.display = 'grid';
+        label.innerText = "Hide Sub-Models";
+      } else {
+        tray.style.display = 'none';
+        label.innerText = "Show Sub-Models";
+      }
+    }
+
+    function dismissTrainingHud() {
+      hudDismissed = true;
+      const hud = document.getElementById('training-live-hud');
+      if (hud) hud.style.display = 'none';
+    }
+
+    async function triggerBatchRetraining() {
+      hudDismissed = false;
+      const btn = document.getElementById('header-batch-train-btn');
+      btn.disabled = true;
+      btn.innerText = "⏳ Launching Batch...";
+
+      try {
+        const res = await fetch('/api/training/start-all-downloaded', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        btn.disabled = false;
+        btn.innerText = "⚡ Retrain All Models";
+
+        // Show HUD immediately
+        const hud = document.getElementById('training-live-hud');
+        if (hud) hud.style.display = 'block';
+        pollMultiModelTrainingStatus();
+      } catch (e) {
+        alert("Error launching batch retraining: " + e.message);
+        btn.disabled = false;
+        btn.innerText = "⚡ Retrain All Models";
+      }
+    }
+
+    async function pollMultiModelTrainingStatus() {
+      if (hudDismissed) return;
+      try {
+        const res = await fetch('/api/training/multi-status', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const hud = document.getElementById('training-live-hud');
+        if (!hud) return;
+
+        if (data.is_training) {
+          hud.style.display = 'block';
+          hud.style.background = 'linear-gradient(90deg, #09172e 0%, #0f274a 50%, #09172e 100%)';
+          hud.style.borderBottomColor = '#38bdf8';
+
+          document.getElementById('hud-pulse-dot').style.background = '#38bdf8';
+          document.getElementById('hud-mode-title').innerText = '⚡ TEMPORARY AI TRAINING MODE ACTIVE';
+          document.getElementById('hud-mode-title').style.color = '#38bdf8';
+
+          const activeDesc = data.active_model_name ?
+            `Training Model [${data.active_model_index + 1}/${data.total_models}]: ${data.active_model_name} • Duration: ${data.duration_seconds}s` :
+            'Optimizing model pipelines...';
+          document.getElementById('hud-active-model-desc').innerText = activeDesc;
+
+          document.getElementById('hud-overall-pct').innerText = `${data.overall_progress.toFixed(1)}%`;
+          document.getElementById('hud-overall-bar').style.width = `${data.overall_progress}%`;
+          document.getElementById('hud-overall-bar').style.background = 'linear-gradient(90deg, #2563eb, #38bdf8)';
+
+          document.getElementById('hud-dismiss-btn').style.display = 'none';
+        } else if (data.all_completed) {
+          hud.style.display = 'block';
+          hud.style.background = 'linear-gradient(90deg, #064e3b 0%, #065f46 50%, #064e3b 100%)';
+          hud.style.borderBottomColor = '#10b981';
+
+          document.getElementById('hud-pulse-dot').style.background = '#10b981';
+          document.getElementById('hud-mode-title').innerText = '✨ ALL 4 SURVEILLANCE MODELS FULLY TRAINED (100%)';
+          document.getElementById('hud-mode-title').style.color = '#34d399';
+          document.getElementById('hud-active-model-desc').innerText = 'All custom weights compiled & hot-reloaded to live camera fleet. System running at optimal precision.';
+
+          document.getElementById('hud-overall-pct').innerText = '100.0%';
+          document.getElementById('hud-overall-bar').style.width = '100%';
+          document.getElementById('hud-overall-bar').style.background = 'linear-gradient(90deg, #059669, #10b981)';
+
+          document.getElementById('hud-dismiss-btn').style.display = 'inline-flex';
+
+          // Automatically auto-dismiss after 20 seconds as requested
+          if (!hudAutoCompleteTimer) {
+            hudAutoCompleteTimer = setTimeout(() => {
+              dismissTrainingHud();
+              hudAutoCompleteTimer = null;
+            }, 20000);
+          }
+        }
+
+        // Render submodels grid
+        if (data.models && data.models.length > 0) {
+          const tray = document.getElementById('hud-submodels-tray');
+          if (tray) {
+            tray.innerHTML = data.models.map((m, idx) => {
+              const isCurr = (idx === data.active_model_index && data.is_training);
+              const isDone = m.status === 'COMPLETED';
+              const badgeColor = isDone ? '#10b981' : (isCurr ? '#38bdf8' : '#64748b');
+              const badgeBg = isDone ? 'rgba(16,185,129,0.15)' : (isCurr ? 'rgba(56,189,248,0.15)' : 'rgba(255,255,255,0.05)');
+              const barBg = isDone ? '#10b981' : (isCurr ? '#38bdf8' : '#334155');
+
+              return `
+                <div style="background:#091222; border:1px solid ${isCurr ? '#38bdf8' : (isDone ? '#10b981' : '#1e293b')}; border-radius:4px; padding:6px 10px; font-size:0.72rem;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <b style="color:#fff; font-size:0.75rem;">${m.name}</b>
+                    <span class="pill" style="background:${badgeBg}; color:${badgeColor}; font-size:0.62rem; padding:1px 5px;">
+                      ${isDone ? 'COMPLETED' : (isCurr ? `EPOCH ${m.current_epoch}/${m.total_epochs}` : m.status)}
+                    </span>
+                  </div>
+                  <div style="width:100%; height:4px; background:#1e293b; border-radius:2px; overflow:hidden; margin:4px 0;">
+                    <div style="width:${m.progress}%; height:100%; background:${barBg}; transition:width 0.3s ease;"></div>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; color:var(--text-muted); font-size:0.65rem; font-family:var(--font-mono);">
+                    <span>Progress: ${m.progress.toFixed(0)}%</span>
+                    <span>Loss: ${m.box_loss ? m.box_loss.toFixed(3) : '0.000'}</span>
+                  </div>
+                </div>
+              `;
+            }).join('');
+          }
+        }
+      } catch (e) {
+        // Silently skip
+      }
+    }
+
+    // Start background multi-model status polling every 1.5s
+    setInterval(pollMultiModelTrainingStatus, 1500);
 
     // --- 13. Threat Notification & Simulated Breach ---
     function showThreatModal(alertData) {
