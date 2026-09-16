@@ -112,29 +112,41 @@ def main():
 
     device = check_gpu()
 
+    def resolve_dataset_yaml(folder_name, default_rel):
+        candidates = [
+            os.path.join(r"E:\project\datasets", folder_name, "data.yaml"),
+            os.path.join(base_dir, "datasets", folder_name, "data.yaml"),
+            os.path.join(base_dir, "data", folder_name, "data.yaml"),
+            os.path.join(base_dir, default_rel)
+        ]
+        for c in candidates:
+            if os.path.exists(c):
+                return c
+        return candidates[0]
+
     # Model Pipeline Definition
     pipeline = [
         {
             "name": "Tactical Weapons Detector",
-            "yaml": os.path.join(base_dir, "data", "weapons", "data.yaml"),
+            "yaml": resolve_dataset_yaml("weapons", "data/weapons/data.yaml"),
             "out": os.path.join(base_dir, "models", "yolov8_weapon.pt"),
             "base": args.model
         },
         {
             "name": "VisDrone Overhead & High-CCTV Detector",
-            "yaml": os.path.join(base_dir, "data", "visdrone", "data.yaml"),
+            "yaml": resolve_dataset_yaml("visdrone", "data/visdrone/data.yaml"),
             "out": os.path.join(base_dir, "models", "yolov8_visdrone.pt"),
             "base": args.model
         },
         {
             "name": "LLVIP Night Vision & Thermal Humans",
-            "yaml": os.path.join(base_dir, "data", "llvip", "data.yaml"),
+            "yaml": resolve_dataset_yaml("llvip", "data/llvip/data.yaml"),
             "out": os.path.join(base_dir, "models", "yolov8_night.pt"),
             "base": args.model
         },
         {
             "name": "Perimeter Patrol Vehicles",
-            "yaml": os.path.join(base_dir, "data", "patrol_cam", "data.yaml"),
+            "yaml": resolve_dataset_yaml("patrol_cam", "data/patrol_cam/data.yaml"),
             "out": os.path.join(base_dir, "models", "yolov8_patrol.pt"),
             "base": args.model
         },

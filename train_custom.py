@@ -65,24 +65,36 @@ def main():
         args.batch = 16 if has_cuda else 8
 
     # 3. Locate Dataset Configuration
+    def resolve_dataset_yaml(folder_name, default_rel):
+        candidates = [
+            os.path.join(r"E:\project\datasets", folder_name, "data.yaml"),
+            os.path.join(base_dir, "datasets", folder_name, "data.yaml"),
+            os.path.join(base_dir, "data", folder_name, "data.yaml"),
+            os.path.join(base_dir, default_rel)
+        ]
+        for c in candidates:
+            if os.path.exists(c):
+                return c
+        return candidates[0]
+
     dataset_configs = {
         "weapons": {
-            "yaml": os.path.join(base_dir, "data", "weapons", "data.yaml"),
+            "yaml": resolve_dataset_yaml("weapons", "data/weapons/data.yaml"),
             "target": os.path.join(base_dir, "models", "yolov8_weapon.pt"),
             "desc": "Tactical Weapons (Guns, Knives, Melee)"
         },
         "visdrone": {
-            "yaml": os.path.join(base_dir, "data", "visdrone", "data.yaml"),
+            "yaml": resolve_dataset_yaml("visdrone", "data/visdrone/data.yaml"),
             "target": os.path.join(base_dir, "models", "yolov8_visdrone.pt"),
             "desc": "Overhead Drone & High-Mounted CCTV"
         },
         "llvip": {
-            "yaml": os.path.join(base_dir, "data", "llvip", "data.yaml"),
+            "yaml": resolve_dataset_yaml("llvip", "data/llvip/data.yaml"),
             "target": os.path.join(base_dir, "models", "yolov8_night.pt"),
             "desc": "Night Vision / Low-Light Infrared Humans"
         },
         "patrol": {
-            "yaml": os.path.join(base_dir, "data", "patrol_cam", "data.yaml"),
+            "yaml": resolve_dataset_yaml("patrol_cam", "data/patrol_cam/data.yaml"),
             "target": os.path.join(base_dir, "models", "yolov8_patrol.pt"),
             "desc": "Perimeter Patrol Vehicles"
         }
