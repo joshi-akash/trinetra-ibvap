@@ -35,6 +35,7 @@ models/*.tflite
 *.pt
 backend/*.pt
 data/
+datasets/
 
 # Test footage (large video files)
 test_footage/*.mp4
