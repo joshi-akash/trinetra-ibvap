@@ -62,6 +62,7 @@ def train_model(name: str, yaml_path: str, output_path: str, base_model: str, ep
         epochs=epochs,
         imgsz=imgsz,
         batch=batch,
+        workers=0,
         device=device,
         project="runs/trinetra_gpu",
         name=run_name,

@@ -127,6 +127,7 @@ def main():
         epochs=args.epochs,
         imgsz=args.imgsz,
         batch=args.batch,
+        workers=0,
         device=device,
         project="runs/trinetra",
         name=run_name,
