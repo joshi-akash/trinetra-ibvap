@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TRINETRA (IBVAP) — Sovereign Border Surveillance & Video Analytics Platform</title>
+  <title>TRINETRA (IBVAP) — Sovereign Border Surveillance & Video Analytics Platform | Border Security Force</title>
+  <!-- Google Fonts: Inter + Rajdhani + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Rajdhani:wght@600;700;800&display=swap" rel="stylesheet">
+
   <!-- HLS.js for Live Online CCTV Streams (.m3u8) -->
   <script src="/static/hls.min.js"></script>
   <script>
@@ -15,26 +20,31 @@
   </script>
   <style>
     :root {
-      --bg-dark: #0a111e;
-      --bg-body: #070d18;
-      --panel-bg: #0f192b;
-      --card-bg: #142239;
-      --card-hover: #1b2d4c;
-      --border-color: #223759;
-      --border-light: #334e7c;
+      --bg-dark: #071224;
+      --bg-body: #040914;
+      --panel-bg: #09172e;
+      --card-bg: #0e203c;
+      --card-hover: #142a4d;
+      --border-color: #1a365f;
+      --border-light: #284c80;
+      --gov-gold: #e2b755;
+      --gov-gold-dark: #b8860b;
       --gov-saffron: #ff9933;
       --gov-green: #138808;
-      --gov-blue: #0b396b;
+      --gov-navy: #002366;
+      --gov-navy-deep: #050d1a;
       --accent-cyan: #38bdf8;
       --accent-red: #ef4444;
       --accent-amber: #f59e0b;
       --accent-green: #10b981;
-      --text-main: #f1f5f9;
+      --text-main: #f8fafc;
       --text-muted: #94a3b8;
-      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --text-gold: #fde68a;
+      --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --font-display: "Rajdhani", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
     body { background-color: var(--bg-body); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
     /* Top Tricolor Strip */
@@ -45,54 +55,131 @@
       flex-shrink: 0;
     }
 
+    /* Government Top Utility Strip */
+    .gov-topstrip {
+      background: #030812;
+      border-bottom: 1px solid rgba(226, 183, 85, 0.22);
+      padding: 3px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.68rem;
+      color: #94a3b8;
+      letter-spacing: 0.4px;
+      flex-shrink: 0;
+      z-index: 25;
+    }
+    .gov-topstrip-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      color: #cbd5e1;
+    }
+    .gov-topstrip-left .gov-flag-icon { font-size: 0.85rem; }
+    .gov-topstrip-left .sep-dot { color: var(--gov-gold); opacity: 0.6; }
+    .gov-topstrip-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+    }
+    .gov-security-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--gov-gold);
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .gov-security-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--gov-gold);
+      box-shadow: 0 0 6px var(--gov-gold);
+    }
+    .gov-live-clock {
+      color: #38bdf8;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
     /* Government Masthead & Operational Header */
     header {
-      background: linear-gradient(180deg, #0d192d 0%, #0a1324 100%);
+      background: linear-gradient(180deg, #09172c 0%, #061120 100%);
       border-bottom: 1px solid var(--border-color);
-      padding: 10px 20px;
+      padding: 8px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       z-index: 20;
       flex-shrink: 0;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
     }
     .brand-section { display: flex; align-items: center; gap: 16px; }
     .gov-badge {
       display: flex;
       align-items: center;
-      gap: 10px;
-      border-right: 1px solid var(--border-color);
-      padding-right: 16px;
+      gap: 14px;
+      border-right: 1px solid rgba(226, 183, 85, 0.25);
+      padding-right: 18px;
     }
-    .gov-emblem {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background: #1e293b;
-      border: 1px solid var(--gov-saffron);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1rem;
+    .bsf-emblem-img {
+      height: 52px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 8px rgba(226, 183, 85, 0.4));
+      transition: transform 0.2s ease;
     }
-    .gov-titles { display: flex; flex-direction: column; }
+    .bsf-emblem-img:hover { transform: scale(1.03); }
+    .gov-titles { display: flex; flex-direction: column; gap: 1px; }
+    .gov-hindi-badge {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: var(--gov-gold);
+      letter-spacing: 0.5px;
+    }
     .gov-ministry {
-      font-size: 0.65rem;
-      letter-spacing: 1.2px;
+      font-size: 0.62rem;
+      letter-spacing: 1px;
       color: #cbd5e1;
       font-weight: 700;
       text-transform: uppercase;
     }
     .gov-platform-title {
-      font-size: 1.12rem;
+      font-family: var(--font-display);
+      font-size: 1.35rem;
       font-weight: 800;
-      letter-spacing: 0.5px;
-      color: #fff;
+      letter-spacing: 1px;
+      color: #ffffff;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
+      line-height: 1.1;
     }
-    .gov-platform-title span { color: var(--accent-cyan); font-weight: 900; }
+    .gov-platform-title .ibvap-badge {
+      background: linear-gradient(135deg, #b8860b 0%, #e2b755 100%);
+      color: #040913;
+      font-size: 0.7rem;
+      font-weight: 900;
+      padding: 2px 7px;
+      border-radius: 4px;
+      letter-spacing: 0.8px;
+      box-shadow: 0 0 10px rgba(226, 183, 85, 0.4);
+    }
+    .gov-subtitle {
+      font-size: 0.65rem;
+      color: #94a3b8;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+    }
+    .pill-bsf-gold {
+      background: rgba(226, 183, 85, 0.12);
+      color: var(--gov-gold);
+      border: 1px solid rgba(226, 183, 85, 0.35);
+    }
     
     .pill {
       font-size: 0.7rem;
@@ -112,21 +199,21 @@
 
     .header-controls { display: flex; gap: 8px; align-items: center; }
     .btn {
-      background: var(--card-bg);
+      background: #0d1e38;
       color: var(--text-main);
       border: 1px solid var(--border-color);
       padding: 6px 12px;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 600;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      transition: all 0.15s ease;
+      transition: all 0.18s ease;
       user-select: none;
     }
-    .btn:hover { border-color: var(--accent-cyan); background: var(--card-hover); color: #fff; }
+    .btn:hover { border-color: var(--gov-gold); background: #142a4d; color: #fff; box-shadow: 0 0 10px rgba(226, 183, 85, 0.2); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-danger { background: #991b1b; border-color: var(--accent-red); color: #fff; }
     .btn-danger:hover { background: #b91c1c; }
@@ -134,6 +221,18 @@
     .btn-primary:hover { background: #0284c7; }
     .btn-success { background: #065f46; border-color: #10b981; color: #fff; }
     .btn-success:hover { background: #047857; }
+    .btn-bsf-gold {
+      background: linear-gradient(135deg, #926a1b 0%, #c99738 100%);
+      border: 1px solid var(--gov-gold);
+      color: #ffffff;
+      font-weight: 700;
+      box-shadow: 0 2px 10px rgba(201, 151, 56, 0.25);
+    }
+    .btn-bsf-gold:hover {
+      background: linear-gradient(135deg, #a87b20 0%, #dba742 100%);
+      border-color: #fde68a;
+      box-shadow: 0 0 14px rgba(226, 183, 85, 0.45);
+    }
     .btn-muted { opacity: 0.6; }
 
     /* Flashing Siren Banner */
@@ -157,30 +256,35 @@
 
     /* Left Navigation Menu */
     nav {
-      width: 250px;
+      width: 255px;
       background: var(--panel-bg);
       border-right: 1px solid var(--border-color);
       display: flex;
       flex-direction: column;
       padding: 12px 10px;
-      gap: 4px;
+      gap: 5px;
       z-index: 10;
       flex-shrink: 0;
     }
     .nav-header {
       font-size: 0.68rem;
       text-transform: uppercase;
-      color: var(--text-muted);
-      font-weight: 700;
-      letter-spacing: 0.8px;
-      padding: 6px 10px;
+      color: var(--gov-gold);
+      font-weight: 800;
+      letter-spacing: 1px;
+      padding: 8px 10px 4px;
+      border-bottom: 1px solid rgba(226, 183, 85, 0.15);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
     .nav-btn {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 8px 12px;
-      border-radius: 4px;
+      padding: 9px 12px;
+      border-radius: 5px;
       color: #cbd5e1;
       background: transparent;
       border: 1px solid transparent;
@@ -189,12 +293,14 @@
       cursor: pointer;
       transition: all 0.15s;
     }
-    .nav-btn:hover { background: var(--card-bg); color: #fff; border-color: rgba(255,255,255,0.06); }
+    .nav-btn:hover { background: var(--card-bg); color: #fff; border-color: rgba(226, 183, 85, 0.2); }
     .nav-btn.active {
-      background: #192945;
-      border-color: #38bdf8;
-      color: #fff;
+      background: linear-gradient(90deg, rgba(226, 183, 85, 0.16) 0%, rgba(15, 34, 63, 0.9) 100%);
+      border-left: 3px solid var(--gov-gold);
+      border-color: rgba(226, 183, 85, 0.35);
+      color: #ffffff;
       font-weight: 700;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
     }
     .nav-badge {
       background: var(--border-color);
@@ -212,7 +318,7 @@
       display: flex;
       flex-direction: column;
       overflow-y: auto;
-      background: #070d18;
+      background: var(--bg-body);
       padding: 14px;
       gap: 14px;
     }
@@ -228,15 +334,17 @@
       flex-shrink: 0;
     }
     .stat-card {
-      background: var(--panel-bg);
+      background: linear-gradient(180deg, #0e1d35 0%, #091527 100%);
       border: 1px solid var(--border-color);
+      border-top: 2px solid var(--gov-gold);
       border-radius: 6px;
       padding: 10px 14px;
       display: flex;
       flex-direction: column;
       gap: 2px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
     }
-    .stat-title { font-size: 0.68rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.5px; }
+    .stat-title { font-size: 0.68rem; text-transform: uppercase; color: var(--gov-gold); font-weight: 800; letter-spacing: 0.6px; }
     .stat-val { font-size: 1.3rem; font-weight: 800; color: #fff; font-family: var(--font-mono); }
     .stat-desc { font-size: 0.7rem; color: var(--text-muted); }
 
@@ -543,16 +651,33 @@
   <!-- Official Tricolor Accent Stripe -->
   <div class="top-tricolor"></div>
 
+  <!-- Official Government Top Utility Bar -->
+  <div class="gov-topstrip">
+    <div class="gov-topstrip-left">
+      <span class="gov-flag-icon">🇮🇳</span>
+      <span>भारत सरकार • गृह मंत्रालय</span>
+      <span class="sep-dot">|</span>
+      <span>GOVERNMENT OF INDIA • MINISTRY OF HOME AFFAIRS</span>
+    </div>
+    <div class="gov-topstrip-right">
+      <span class="gov-security-badge">
+        <span class="gov-security-dot"></span>
+        RESTRICTED // BSF AIR-GAPPED C4ISR SYSTEM
+      </span>
+      <span class="gov-live-clock" id="gov-live-clock">IST: --:--:--</span>
+    </div>
+  </div>
+
   <!-- Pulsing Siren Alert Banner -->
   <div id="siren-banner">🚨 ACTIVE PERIMETER BREACH DETECTED — AUDIO SIREN ARMED 🚨</div>
 
   <!-- TEMPORARY LIVE TRAINING MODE HUD BANNER -->
-  <div id="training-live-hud" style="display:none; background:linear-gradient(90deg, #09172e 0%, #0f274a 50%, #09172e 100%); border-bottom:2px solid #38bdf8; padding:8px 18px; z-index:25; flex-shrink:0; box-shadow:0 4px 20px rgba(0,0,0,0.6);">
+  <div id="training-live-hud" style="display:none; background:linear-gradient(90deg, #09172e 0%, #0f274a 50%, #09172e 100%); border-bottom:2px solid #e2b755; padding:8px 18px; z-index:25; flex-shrink:0; box-shadow:0 4px 20px rgba(0,0,0,0.6);">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
       <div style="display:flex; align-items:center; gap:10px;">
-        <span class="live-dot" id="hud-pulse-dot" style="background:#38bdf8; width:10px; height:10px;"></span>
+        <span class="live-dot" id="hud-pulse-dot" style="background:#e2b755; width:10px; height:10px;"></span>
         <div>
-          <span style="font-size:0.75rem; font-weight:800; color:#38bdf8; letter-spacing:1px; text-transform:uppercase;" id="hud-mode-title">⚡ TEMPORARY AI TRAINING MODE ACTIVE</span>
+          <span style="font-size:0.75rem; font-weight:800; color:#e2b755; letter-spacing:1px; text-transform:uppercase;" id="hud-mode-title">⚡ TEMPORARY AI TRAINING MODE ACTIVE</span>
           <div id="hud-active-model-desc" style="font-size:0.8rem; font-weight:700; color:#fff; margin-top:1px;">
             Initializing Multi-Model Retraining Pipeline...
           </div>
@@ -563,10 +688,10 @@
         <!-- Overall Progress -->
         <div style="display:flex; align-items:center; gap:8px;">
           <span style="font-size:0.68rem; color:#94a3b8; font-weight:700; text-transform:uppercase;">Overall:</span>
-          <div style="width:170px; height:8px; background:#0f172a; border-radius:4px; overflow:hidden; border:1px solid rgba(56,189,248,0.3);">
-            <div id="hud-overall-bar" style="width:0%; height:100%; background:linear-gradient(90deg, #2563eb, #38bdf8); transition:width 0.4s ease;"></div>
+          <div style="width:170px; height:8px; background:#0f172a; border-radius:4px; overflow:hidden; border:1px solid rgba(226,183,85,0.3);">
+            <div id="hud-overall-bar" style="width:0%; height:100%; background:linear-gradient(90deg, #926a1b, #e2b755); transition:width 0.4s ease;"></div>
           </div>
-          <span id="hud-overall-pct" style="font-family:var(--font-mono); font-size:0.85rem; font-weight:800; color:#38bdf8;">0.0%</span>
+          <span id="hud-overall-pct" style="font-family:var(--font-mono); font-size:0.85rem; font-weight:800; color:#e2b755;">0.0%</span>
         </div>
 
         <button class="btn" style="padding:4px 10px; font-size:0.72rem;" onclick="toggleHudSubmodelsTray()">
@@ -588,20 +713,25 @@
   <header>
     <div class="brand-section">
       <div class="gov-badge">
-        <div class="gov-emblem">🇮🇳</div>
+        <img src="/static/bsf_logo.png" alt="Border Security Force Emblem" class="bsf-emblem-img" />
         <div class="gov-titles">
-          <span class="gov-ministry">Government of India • Ministry of Home Affairs</span>
-          <div class="gov-platform-title">TRINETRA <span>IBVAP</span></div>
+          <div class="gov-hindi-badge">सीमा सुरक्षा बल • भारत सरकार</div>
+          <div class="gov-ministry">BORDER SECURITY FORCE • MINISTRY OF HOME AFFAIRS</div>
+          <div class="gov-platform-title">
+            TRINETRA <span class="ibvap-badge">IBVAP</span>
+          </div>
+          <div class="gov-subtitle">Integrated Border Surveillance &amp; Video Analytics Platform • Sector Alpha HQ</div>
         </div>
       </div>
-      <span class="pill pill-offline">● BOP SECTOR ALPHA (AIR-GAPPED SOVEREIGN)</span>
+      <span class="pill pill-bsf-gold">● BSF C4ISR SURVEILLANCE</span>
+      <span class="pill pill-offline">● AIR-GAPPED SOVEREIGN</span>
       <span id="threat-pill" class="pill pill-siren">🚨 INTRUSION ALERT</span>
     </div>
 
     <div class="header-controls">
       <button id="siren-toggle-btn" class="btn" onclick="toggleSirenMute()">🔊 Siren: Armed</button>
-      <button id="night-vision-global-btn" class="btn" onclick="toggleGlobalNightVision()">🌙 Night-Vision: OFF</button>
-      <button class="btn" style="background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); border-color:#60a5fa; color:#fff; font-weight:700;" onclick="openTrainingModal()">🧠 Train Console</button>
+      <button id="night-vision-global-btn" class="btn" onclick="toggleGlobalNightVision()">🌙 Zero-DCE IR: Auto</button>
+      <button class="btn btn-bsf-gold" onclick="openTrainingModal()">🧠 Train Console</button>
       <a href="/docs" target="_blank" class="btn">📖 API Specs</a>
     </div>
   </header>
@@ -661,13 +791,13 @@
       <!-- TAB 1: Live Sector Feeds -->
       <div id="tab-live-view" class="tab-view active">
         <!-- Automated Tactical Status Strip -->
-        <div style="display:flex; justify-content:space-between; align-items:center; background:#0f192b; padding:8px 16px; border-radius:6px; border:1px solid var(--border-color); margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; background:linear-gradient(90deg, #09182f 0%, #0d2242 50%, #09182f 100%); padding:8px 16px; border-radius:6px; border:1px solid #1c3860; border-left:3px solid var(--gov-gold); margin-bottom:10px; box-shadow:0 3px 12px rgba(0,0,0,0.35);">
           <div style="display:flex; align-items:center; gap:10px;">
             <span class="live-dot" style="background:#10b981;"></span>
-            <span style="font-weight:800; font-size:0.75rem; color:#f1f5f9; letter-spacing:0.5px;">AUTOMATED AI SURVEILLANCE ENGINE: <span style="color:#38bdf8;">ACTIVE (450ms OPTIMAL)</span></span>
+            <span style="font-weight:800; font-size:0.75rem; color:#f1f5f9; letter-spacing:0.5px;">BSF AUTOMATED AI SURVEILLANCE ENGINE: <span style="color:var(--gov-gold);">ACTIVE (450ms OPTIMAL)</span></span>
           </div>
           <div style="display:flex; align-items:center; gap:8px;">
-            <span class="pill pill-info" style="font-size:0.7rem;">● YOLOv8 TACTICAL DETECTOR</span>
+            <span class="pill pill-bsf-gold" style="font-size:0.7rem;">● YOLOv8 TACTICAL DETECTOR</span>
             <span class="pill pill-success" style="font-size:0.7rem;">● SMOOTH DIRECTIONAL TRACKING</span>
             <span class="pill pill-offline" style="font-size:0.7rem;">● AUTO ZERO-DCE LOW-LIGHT</span>
           </div>
@@ -3219,6 +3349,20 @@
 
     // --- 15. Application Bootloader ---
     window.onload = async () => {
+      // Initialize Live Military IST Clock
+      function updateLiveClock() {
+        const clockEl = document.getElementById('gov-live-clock');
+        if (clockEl) {
+          const now = new Date();
+          const options = { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' };
+          const timeStr = now.toLocaleTimeString('en-GB', options);
+          const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+          clockEl.textContent = `${dateStr} • ${timeStr} IST`;
+        }
+      }
+      updateLiveClock();
+      setInterval(updateLiveClock, 1000);
+
       await login();
       await loadCameraMatrix();
       await loadAlerts();
