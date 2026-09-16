@@ -601,8 +601,6 @@
     <div class="header-controls">
       <button id="siren-toggle-btn" class="btn" onclick="toggleSirenMute()">🔊 Siren: Armed</button>
       <button id="night-vision-global-btn" class="btn" onclick="toggleGlobalNightVision()">🌙 Night-Vision: OFF</button>
-      <button class="btn btn-danger" onclick="triggerSimulatedBreach()">🚨 Test Breach</button>
-      <button class="btn" id="header-batch-train-btn" style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); border-color:#34d399; color:#fff; font-weight:700;" onclick="triggerBatchRetraining()">⚡ Retrain All Models</button>
       <button class="btn" style="background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); border-color:#60a5fa; color:#fff; font-weight:700;" onclick="openTrainingModal()">🧠 Train Console</button>
       <a href="/docs" target="_blank" class="btn">📖 API Specs</a>
     </div>
@@ -693,7 +691,7 @@
             <h3 style="font-size: 1rem; color:#f87171;">Active Incident & Breach Desk</h3>
             <p style="font-size: 0.75rem; color:var(--text-muted);">Real-time high-priority rule triggers and unauthorized perimeter incursions.</p>
           </div>
-          <button class="btn btn-danger" onclick="triggerSimulatedBreach()">🚨 Trigger Test Breach</button>
+          <span class="pill pill-siren" style="display:inline-flex;">⚡ REAL-TIME ENGINE ACTIVE</span>
         </div>
         <div id="alert-card-list" style="display:flex; flex-direction:column; gap:10px;">
           <!-- Alert cards populated by JS -->
