@@ -660,22 +660,16 @@
 
       <!-- TAB 1: Live Sector Feeds -->
       <div id="tab-live-view" class="tab-view active">
-        <!-- Tactical Matrix Operational Controls -->
-        <div style="display:flex; justify-content:space-between; align-items:center; background:#0f192b; padding:8px 14px; border-radius:6px; border:1px solid var(--border-color); margin-bottom:10px;">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <span style="font-weight:700; font-size:0.75rem; color:var(--text-muted); letter-spacing:0.5px;">TACTICAL MATRIX:</span>
-            <button id="btn-night-vision" class="btn" style="padding:3px 10px; font-size:0.75rem;" onclick="toggleNightVision()">🌙 Low-Light IR Boost: OFF</button>
-            <button id="btn-nvg-green" class="btn" style="padding:3px 10px; font-size:0.75rem;" onclick="toggleNvgGreen()">🟢 Green NVG: OFF</button>
-            <button id="btn-motion-trails" class="btn" style="padding:3px 10px; font-size:0.75rem;" onclick="toggleMotionTrails()">📈 Trajectory Trails: OFF</button>
+        <!-- Automated Tactical Status Strip -->
+        <div style="display:flex; justify-content:space-between; align-items:center; background:#0f192b; padding:8px 16px; border-radius:6px; border:1px solid var(--border-color); margin-bottom:10px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span class="live-dot" style="background:#10b981;"></span>
+            <span style="font-weight:800; font-size:0.75rem; color:#f1f5f9; letter-spacing:0.5px;">AUTOMATED AI SURVEILLANCE ENGINE: <span style="color:#38bdf8;">ACTIVE (450ms OPTIMAL)</span></span>
           </div>
           <div style="display:flex; align-items:center; gap:8px;">
-            <label style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">AI LOAD:</label>
-            <select id="select-ai-rate" class="form-input" style="padding:2px 8px; font-size:0.72rem; width:auto; background:#111c30; border:1px solid #334e7c; color:#38bdf8; border-radius:4px; font-weight:600;" onchange="changeAiRate(this.value)">
-              <option value="1000">🌱 Eco Mode (1000ms / Low CPU)</option>
-              <option value="650" selected>⚡ Balanced (650ms / Optimal)</option>
-              <option value="400">🎯 High Precision (400ms)</option>
-            </select>
-            <span class="pill pill-success" style="font-size:0.72rem;">● SMOOTH DIRECTIONAL TRACKING</span>
+            <span class="pill pill-info" style="font-size:0.7rem;">● YOLOv8 TACTICAL DETECTOR</span>
+            <span class="pill pill-success" style="font-size:0.7rem;">● SMOOTH DIRECTIONAL TRACKING</span>
+            <span class="pill pill-offline" style="font-size:0.7rem;">● AUTO ZERO-DCE LOW-LIGHT</span>
           </div>
         </div>
 
