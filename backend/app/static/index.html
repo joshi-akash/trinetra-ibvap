@@ -1187,6 +1187,79 @@
               </div>
             </div>
           </div>
+
+          <!-- ANPR Tactical Number Plate Intelligence Studio Card -->
+          <div class="canvas-card" style="border: 1px solid rgba(245, 158, 11, 0.4); margin-top: 4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+              <div>
+                <h3 style="font-size:1.05rem; color:#fbbf24; display:flex; align-items:center; gap:8px;">
+                  <span>🚗 Tactical ANPR & Number Plate Intelligence Studio</span>
+                  <span class="pill pill-success" style="font-size:0.65rem; background:rgba(16,185,129,0.2); color:#10b981; border:1px solid #10b981;">● CUDA:0 GPU ACCELERATED</span>
+                  <span class="pill pill-info" style="font-size:0.65rem; background:rgba(56,189,248,0.2); color:#38bdf8; border:1px solid #38bdf8;">● TRACK-PERSISTENT MEMORY</span>
+                </h3>
+                <p style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
+                  Manage tactical vehicle watchlists, flag suspicious registration plates for automated breach alarms, and inspect historical CCTV camera sightings.
+                </p>
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap:14px; margin-top:12px;">
+              <!-- Sub-card 1: ANPR Watchlist & Hotlist -->
+              <div style="background:#070d18; border:1px solid var(--border-color); border-radius:6px; padding:14px; display:flex; flex-direction:column; gap:12px;">
+                <div style="font-weight:700; color:#fff; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+                  <span style="color:#ef4444;">🚨 Flagged Vehicles & ANPR Watchlist</span>
+                  <span id="watchlist-count" class="pill pill-danger" style="font-size:0.65rem;">0 FLAGGED</span>
+                </div>
+                
+                <!-- Add to Watchlist Form -->
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                  <input type="text" id="anpr-new-plate" class="text-input" placeholder="Plate (e.g. DL01AB1234)" style="flex:1; min-width:130px; font-family:var(--font-mono); text-transform:uppercase;">
+                  <select id="anpr-new-threat" class="select-input" style="width:115px;">
+                    <option value="CRITICAL">CRITICAL</option>
+                    <option value="HIGH" selected>HIGH</option>
+                    <option value="MONITOR">MONITOR</option>
+                  </select>
+                  <input type="text" id="anpr-new-notes" class="text-input" placeholder="Briefing note / reason" style="flex:1; min-width:110px;">
+                  <button class="btn btn-primary" onclick="addPlateToWatchlistUI()" style="padding:4px 14px; font-weight:700;">+ Flag</button>
+                </div>
+
+                <!-- Watchlist Table -->
+                <div class="table-container" style="max-height:220px; overflow-y:auto;">
+                  <table style="font-size:0.72rem;">
+                    <thead>
+                      <tr>
+                        <th>Plate Number</th>
+                        <th>Threat Tier</th>
+                        <th>Briefing Notes</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="anpr-watchlist-tbody">
+                      <tr><td colspan="4" style="color:var(--text-muted); text-align:center;">Loading hotlist...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Sub-card 2: Instant ANPR Sighting Search -->
+              <div style="background:#070d18; border:1px solid var(--border-color); border-radius:6px; padding:14px; display:flex; flex-direction:column; gap:12px;">
+                <div style="font-weight:700; color:#fff; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+                  <span style="color:#38bdf8;">🔍 Historical Plate Search & Trajectory</span>
+                  <span class="stat-desc">Search all sector cameras</span>
+                </div>
+                <div style="display:flex; gap:6px;">
+                  <input type="text" id="anpr-search-plate-input" class="text-input" placeholder="Enter registration plate (e.g. HR26, DL01, PB08)..." style="flex:1; font-family:var(--font-mono); text-transform:uppercase;" onkeydown="if(event.key==='Enter') searchPlateHistoryUI()">
+                  <button class="btn btn-primary" onclick="searchPlateHistoryUI()" style="padding:4px 14px; font-weight:700;">Search Sightings</button>
+                </div>
+                <!-- Sighting Results Container -->
+                <div id="anpr-search-results" class="table-container" style="max-height:220px; overflow-y:auto;">
+                  <div style="color:var(--text-muted); font-size:0.75rem; text-align:center; padding:18px;">
+                    Enter a license plate string above to inspect camera timestamps, vehicle velocity, and tracking logs.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </main>
@@ -1489,6 +1562,7 @@
       if (tabId === 'admin-dashboard') {
         loadAdminDashboardStats();
         loadCuratedDatasetsUI();
+        loadPlateWatchlistUI();
       }
     }
 
@@ -1926,7 +2000,7 @@
                 cls = isAlert ? 'threat' : 'vehicle';
                 const vType = (attrs.vehicle_type || 'Vehicle').toUpperCase();
                 const vColor = attrs.vehicle_color || 'Vehicle';
-                const plate = attrs.plate_text ? `ANPR: ${attrs.plate_text}` : 'ANPR Scanned';
+                const plate = attrs.plate_text ? `🏷️ [ ${attrs.plate_text} ]` : '🔍 SCANNING';
                 nameTag = isAlert ? `🚨 ALERT: ${(attrs.rule_fired || 'BREACH').toUpperCase()} [${conf}%]` : `🚗 ${vType} (${vColor}) [${conf}%]`;
                 metaContent = `${plate} ${speedStr ? '| ' + speedStr : ''}${dirBadge}`;
               } else {
@@ -2259,6 +2333,133 @@
       }
     }
 
+    // --- 8.1 ANPR Tactical Plate Intelligence Functions ---
+    async function loadPlateWatchlistUI() {
+      if (!token) await login();
+      try {
+        const res = await fetch('/api/anpr/watchlist', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (res.ok) {
+          const list = await res.json();
+          const tbody = document.getElementById('anpr-watchlist-tbody');
+          const countBadge = document.getElementById('watchlist-count');
+          if (countBadge) countBadge.innerText = `${list.length} FLAGGED`;
+          if (!tbody) return;
+          if (list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="color:var(--text-muted); text-align:center; padding:12px;">No vehicles currently flagged on watchlist.</td></tr>';
+            return;
+          }
+          tbody.innerHTML = list.map(item => {
+            const badgeColor = item.threat_level === 'CRITICAL' ? '#ef4444' : (item.threat_level === 'HIGH' ? '#f59e0b' : '#38bdf8');
+            return `<tr>
+              <td><span style="font-family:var(--font-mono); font-weight:800; color:#fff; background:#1e293b; padding:2px 6px; border-radius:3px;">${item.plate_number}</span></td>
+              <td><span style="color:${badgeColor}; font-weight:800; font-size:0.7rem;">● ${item.threat_level}</span></td>
+              <td style="color:var(--text-muted); font-size:0.7rem;">${item.notes || '—'}</td>
+              <td>
+                <button class="btn btn-danger" style="padding:2px 8px; font-size:0.68rem;" onclick="removePlateFromWatchlistUI('${item.plate_number}')">Remove</button>
+              </td>
+            </tr>`;
+          }).join('');
+        }
+      } catch (e) {
+        console.error("Watchlist load error:", e);
+      }
+    }
+
+    async function addPlateToWatchlistUI() {
+      if (!token) await login();
+      const input = document.getElementById('anpr-new-plate');
+      const threat = document.getElementById('anpr-new-threat').value;
+      const notes = document.getElementById('anpr-new-notes').value;
+      const val = input.value.trim();
+      if (!val) {
+        alert("Please enter a valid license plate number");
+        return;
+      }
+      try {
+        const res = await fetch('/api/anpr/watchlist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ plate_number: val, threat_level: threat, notes: notes })
+        });
+        if (res.ok) {
+          input.value = '';
+          document.getElementById('anpr-new-notes').value = '';
+          loadPlateWatchlistUI();
+        } else {
+          const err = await res.json();
+          alert("Error adding plate: " + (err.detail || "Failed"));
+        }
+      } catch (e) {
+        alert("Network error: " + e.message);
+      }
+    }
+
+    async function removePlateFromWatchlistUI(plateNumber) {
+      if (!token) await login();
+      try {
+        const res = await fetch(`/api/anpr/watchlist/${encodeURIComponent(plateNumber)}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.ok) {
+          loadPlateWatchlistUI();
+        }
+      } catch (e) {
+        console.error("Error removing plate:", e);
+      }
+    }
+
+    async function searchPlateHistoryUI() {
+      if (!token) await login();
+      const query = document.getElementById('anpr-search-plate-input').value.trim();
+      const container = document.getElementById('anpr-search-results');
+      if (!query) {
+        alert("Please enter a plate number or prefix to search");
+        return;
+      }
+      container.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:12px;">Searching surveillance records...</div>';
+      try {
+        const res = await fetch(`/api/anpr/search?query=${encodeURIComponent(query)}`, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.ok) {
+          const sightings = await res.json();
+          if (sightings.length === 0) {
+            container.innerHTML = `<div style="color:#f87171; text-align:center; padding:12px; font-size:0.75rem;">No historical sightings found for plate '${query}'.</div>`;
+            return;
+          }
+          container.innerHTML = `
+            <table style="font-size:0.72rem;">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Camera</th>
+                  <th>Plate</th>
+                  <th>Vehicle</th>
+                  <th>Speed & Direction</th>
+                  <th>Alert</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${sightings.map(s => `
+                  <tr>
+                    <td style="font-family:var(--font-mono); font-size:0.7rem;">${new Date(s.timestamp).toLocaleTimeString()}</td>
+                    <td><span class="pill pill-info">${s.camera_id || 'CAM-01'}</span></td>
+                    <td><span style="background:#f59e0b; color:#000; font-weight:800; padding:1px 5px; border-radius:2px; font-family:var(--font-mono);">${s.plate_text}</span></td>
+                    <td>🚗 ${s.vehicle_color || ''} ${s.vehicle_type || 'Vehicle'}</td>
+                    <td>${s.speed_kmh ? s.speed_kmh + ' km/h' : '—'} ${s.direction ? '🧭 ' + s.direction : ''}</td>
+                    <td>${s.is_alert ? '<span style="color:#ef4444; font-weight:700;">🚨 ' + (s.alert_type || 'ALERT') + '</span>' : '<span style="color:#64748b;">Normal</span>'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          `;
+        }
+      } catch (e) {
+        container.innerHTML = `<div style="color:#ef4444; text-align:center; padding:12px;">Search error: ${e.message}</div>`;
+      }
+    }
+
     // --- 9. Intelligence Logs ---
     function setLogCategory(cat) {
       currentCategory = cat;
@@ -2345,7 +2546,7 @@
           if (isVeh) {
             const vType = (l.vehicle_type || 'Car').toUpperCase();
             const vCol = l.upper_color || 'Vehicle';
-            const vPlate = l.plate_text ? `<b>${l.plate_text}</b>` : 'Scanned';
+            const vPlate = l.plate_text ? `<span style="background:#f59e0b; color:#000; font-weight:800; padding:1px 6px; border-radius:3px; font-family:var(--font-mono); font-size:0.75rem;">${l.plate_text}</span>` : '<span style="color:var(--text-muted);">Unidentified</span>';
             const vSpeed = l.speed_kmh ? `${l.speed_kmh} km/h` : '';
             const vDir = l.direction ? `🧭 ${l.direction}` : '';
             vehInfo = `🚗 ${vCol} ${vType} | ${vPlate} ${vSpeed ? '| ' + vSpeed : ''} ${vDir ? '| ' + vDir : ''}`;

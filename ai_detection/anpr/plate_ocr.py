@@ -91,9 +91,11 @@ class PlateOCR:
 
         try:
             import easyocr
-            self.ocr_engine = easyocr.Reader([self.lang], gpu=False)
+            import torch
+            use_gpu = torch.cuda.is_available()
+            self.ocr_engine = easyocr.Reader([self.lang], gpu=use_gpu, verbose=False)
             self._engine_type = "easyocr"
-            logger.info("EasyOCR initialized successfully as ANPR fallback.")
+            logger.info("EasyOCR initialized successfully as ANPR engine (GPU=%s).", use_gpu)
             return
         except Exception as e:
             logger.warning("EasyOCR not available (%s). Operating in fallback mode.", e)
@@ -119,14 +121,32 @@ class PlateOCR:
         if h < 10 or w < 20:
             return None
 
+        # Preprocessing: upscale small crops and enhance contrast for sharp OCR
+        proc_crop = plate_crop
+        try:
+            import cv2
+            if h < 48:
+                scale_f = 48.0 / max(1.0, float(h))
+                new_w = max(40, int(w * scale_f))
+                proc_crop = cv2.resize(plate_crop, (new_w, 48), interpolation=cv2.INTER_CUBIC)
+            
+            # Contrast enhancement
+            if len(proc_crop.shape) == 3 and proc_crop.shape[2] == 3:
+                lab = cv2.cvtColor(proc_crop, cv2.COLOR_BGR2LAB)
+                l, a, b = cv2.split(lab)
+                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(4, 4))
+                cl = clahe.apply(l)
+                proc_crop = cv2.cvtColor(cv2.merge((cl, a, b)), cv2.COLOR_LAB2BGR)
+        except Exception:
+            proc_crop = plate_crop
+
         extracted_text = ""
         raw_conf = 0.0
 
         if self._engine_type == "paddle" and self.ocr_engine is not None:
             try:
-                result = self.ocr_engine.ocr(plate_crop, cls=self.use_angle_cls)
+                result = self.ocr_engine.ocr(proc_crop, cls=self.use_angle_cls)
                 if result and len(result) > 0 and result[0]:
-                    # PaddleOCR returns list of [[box], (text, score)]
                     texts = []
                     confs = []
                     for line in result[0]:
@@ -141,7 +161,7 @@ class PlateOCR:
 
         elif self._engine_type == "easyocr" and self.ocr_engine is not None:
             try:
-                result = self.ocr_engine.readtext(plate_crop)
+                result = self.ocr_engine.readtext(proc_crop)
                 if result:
                     texts = [r[1] for r in result]
                     confs = [float(r[2]) for r in result]

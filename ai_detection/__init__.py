@@ -37,6 +37,7 @@ _FRS_MATCHER_INSTANCE: Optional[FaceMatcher] = None
 _PLATE_DETECTOR_INSTANCE: Optional[PlateDetector] = None
 _PLATE_OCR_INSTANCE: Optional[PlateOCR] = None
 _SUSPECT_STORE_INSTANCE: Optional[KnownSuspectStore] = None
+_TRACK_PLATE_MEMORY: Dict[Tuple[str, str], str] = {}
 
 
 def get_stage_components(
@@ -243,12 +244,26 @@ def run_detection_stage(
             if getattr(entity, "speed_kmh", None) is not None:
                 attributes["speed_kmh"] = entity.speed_kmh
 
-            # Extract plate crop and perform OCR
+            # Extract plate crop, perform OCR, and retain plate across track lifetime
+            t_id = getattr(entity, "track_id", None)
+            plate_cache_key = (str(camera_id), str(t_id)) if t_id is not None else None
+
+            detected_plate = None
             plate_crop = p_det.detect_plate_crop(crop)
             if plate_crop is not None:
                 ocr_res = ocr.read_plate(plate_crop)
-                if ocr_res is not None:
-                    attributes["plate_text"] = ocr_res[0]
+                if ocr_res is not None and ocr_res[0]:
+                    detected_plate = ocr_res[0]
+                    if plate_cache_key:
+                        _TRACK_PLATE_MEMORY[plate_cache_key] = detected_plate
+
+            if detected_plate:
+                attributes["plate_text"] = detected_plate
+            elif plate_cache_key and plate_cache_key in _TRACK_PLATE_MEMORY:
+                # Retain previously recognized plate for this vehicle trajectory
+                attributes["plate_text"] = _TRACK_PLATE_MEMORY[plate_cache_key]
+            else:
+                attributes["plate_text"] = None
 
             attributes["upper_color"] = None
             attributes["lower_color"] = None

@@ -12,6 +12,7 @@ from backend.app.api.entities import router as entities_router
 from backend.app.api.alerts import router as alerts_router
 from backend.app.api.search import router as search_router
 from backend.app.api.training import router as training_router
+from backend.app.api.anpr import router as anpr_router
 from backend.app.api.ws_alerts import ws_router
 
 @asynccontextmanager
@@ -69,6 +70,7 @@ app.include_router(entities_router)
 app.include_router(alerts_router)
 app.include_router(search_router)
 app.include_router(training_router)
+app.include_router(anpr_router)
 app.include_router(ws_router)
 
 @app.get("/api/health", tags=["Health"])
