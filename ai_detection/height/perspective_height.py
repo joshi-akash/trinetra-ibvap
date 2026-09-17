@@ -181,3 +181,61 @@ class PerspectiveHeightEstimator:
             return SANITY_MAX_HEIGHT_CM
 
         return None
+
+
+_TRACK_HEIGHT_CACHE: Dict[Tuple[str, str], float] = {}
+
+
+def estimate_adaptive_height(
+    bbox: Union[List[int], Tuple[int, int, int, int]],
+    frame_shape: Optional[Tuple[int, int]] = None,
+    track_id: Optional[Any] = None,
+    camera_id: Optional[str] = None,
+) -> float:
+    """
+    Intelligent adaptive perspective height estimation for uncalibrated CCTV footage.
+
+    Accounts for:
+    1. Ground-plane foreshortening: objects further back appear smaller in 2D pixels.
+    2. Body aspect ratio: distinguishes slender/tall vs crouching/sitting poses.
+    3. Per-track temporal smoothing: prevents jitter across consecutive frames.
+    4. Realistic adult biological distribution: natural variations (160 cm - 188 cm).
+    """
+    x1, y1, x2, y2 = bbox
+    h_px = float(max(1, y2 - y1))
+    w_px = float(max(1, x2 - x1))
+
+    f_h = float(frame_shape[0]) if (frame_shape and len(frame_shape) >= 2 and frame_shape[0] > 0) else max(720.0, float(y2) * 1.15)
+
+    # Normalized ground contact position (foot coordinate relative to frame height)
+    v_norm = min(1.0, max(0.1, float(y2) / f_h))
+
+    # In elevated perspective surveillance, expected human pixel height at vertical foot position v_norm
+    expected_px = f_h * (0.08 + 0.32 * math.pow(v_norm, 1.3))
+
+    scale = h_px / max(10.0, expected_px)
+
+    # Human aspect ratio factor (head-to-toe standing vs crouching)
+    ar = h_px / w_px
+    ar_factor = 1.0 + 0.05 * math.tanh((ar - 3.0) / 1.5)
+
+    # Base mean adult height (173.0 cm) scaled with realistic bounds
+    raw = 173.0 * scale * ar_factor
+
+    # Soft non-linear compressive mapping between 158.0 cm and 188.0 cm
+    delta = raw - 173.0
+    comp = 13.0 * math.tanh(delta / 12.0)
+    final_height = round(173.0 + comp, 1)
+
+    # Track temporal smoothing (EMA)
+    if track_id is not None and camera_id:
+        cache_key = (str(camera_id), str(track_id))
+        prev = _TRACK_HEIGHT_CACHE.get(cache_key)
+        if prev is not None:
+            final_height = round(0.85 * prev + 0.15 * final_height, 1)
+        _TRACK_HEIGHT_CACHE[cache_key] = final_height
+        if len(_TRACK_HEIGHT_CACHE) > 500:
+            _TRACK_HEIGHT_CACHE.clear()
+
+    return final_height
+

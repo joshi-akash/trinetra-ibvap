@@ -25,7 +25,7 @@ from .anpr.plate_ocr import PlateOCR
 from .detection.yolov8_detector import DetectedEntity, YOLOv8Detector, compute_foot_point
 from .frs.face_matcher import FaceMatcher
 from .frs.known_suspects import KnownSuspectStore
-from .height.perspective_height import PerspectiveHeightEstimator
+from .height.perspective_height import PerspectiveHeightEstimator, estimate_adaptive_height
 from .par.clothing_color import extract_clothing_colors, extract_vehicle_color, estimate_skin_tone, estimate_posture
 from .par.gender_estimation import estimate_gender
 
@@ -194,12 +194,16 @@ def run_detection_stage(
             attributes["props"] = list(getattr(entity, "extra_props", []))
             attributes["skin_tone"] = estimate_skin_tone(crop, is_low_light=is_low_light)
 
-            # 4. Height estimation via ground-plane calibration or proportional scale
+            # 4. Height estimation via ground-plane calibration or adaptive perspective depth
             if height_estimator is not None and height_estimator.is_calibrated:
                 attributes["height_cm"] = height_estimator.estimate_height(bbox)
             else:
-                h_px = bbox[3] - bbox[1]
-                attributes["height_cm"] = round(float(np.clip(h_px * 0.72, 155.0, 192.0)), 1)
+                attributes["height_cm"] = estimate_adaptive_height(
+                    bbox=bbox,
+                    frame_shape=frame.shape[:2] if (frame is not None and hasattr(frame, "shape")) else None,
+                    track_id=getattr(entity, "track_id", None),
+                    camera_id=camera_id,
+                )
 
             # 5. Facial Recognition & Labeling
             face_match = frs.process_person_crop(crop)
@@ -286,4 +290,5 @@ __all__ = [
     "extract_clothing_colors",
     "estimate_gender",
     "PerspectiveHeightEstimator",
+    "estimate_adaptive_height",
 ]
