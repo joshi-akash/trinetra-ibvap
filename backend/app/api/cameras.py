@@ -335,14 +335,16 @@ def detect_camera_frame(
 
     h, w = frame.shape[:2]
 
+    camera = db.query(CameraRegistry).filter(CameraRegistry.camera_id == camera_id).first()
+    calib_data = camera.calibration_reference_points if camera else None
+
     try:
         from ai_detection import run_detection_stage
-        raw_entities = run_detection_stage(frame, camera_id=camera_id)
+        raw_entities = run_detection_stage(frame, camera_id=camera_id, calibration_data=calib_data)
     except Exception as e:
         logger.warning(f"Detection stage error: {e}")
         raw_entities = []
 
-    camera = db.query(CameraRegistry).filter(CameraRegistry.camera_id == camera_id).first()
     geofence_coords = camera.geo_fence_polygon if camera else None
     cam_lat = camera.location_lat if (camera and camera.location_lat) else 29.9457
     cam_lon = camera.location_lon if (camera and camera.location_lon) else 78.1642
