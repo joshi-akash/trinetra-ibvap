@@ -477,17 +477,29 @@ def detect_camera_frame(
             rule_fired = None
             threat_score = 0.10
 
-        # 5. Event-Driven Intelligent Database Persistence & Throttling
-        # Rules:
-        # a) First sighting of a tracked entity -> Log once immediately.
-        # b) New / Escalated Alert -> Log immediately with thumbnail.
-        # c) Repeated Alert (same track + same rule) -> Cooldown for at least 45 seconds.
-        # d) Forensic Milestone -> Log if license plate OCR or suspect face newly identified.
-        # e) Passive heartbeat -> At most once every 60 seconds.
-        # f) Untracked entity -> Cooldown 30s (passive) or 15s (alert).
         track_state_key = f"{camera_id}_{tid_val}" if tid_val is not None else f"{camera_id}_untracked_{is_alert}"
         track_state = _ENTITY_LOG_THROTTLE.get(track_state_key)
 
+        # Retain plate from previous frames of this vehicle trajectory
+        if not attrs.get("plate_text") and track_state and track_state.get("plate"):
+            attrs["plate_text"] = track_state.get("plate")
+
+        # Check ANPR Watchlist for flagged suspect vehicles
+        current_plate = attrs.get("plate_text")
+        if current_plate:
+            try:
+                from backend.app.models import PlateWatchlist
+                clean_p = current_plate.replace(" ", "").replace("-", "").upper()
+                w_match = db.query(PlateWatchlist).filter(PlateWatchlist.plate_number == clean_p, PlateWatchlist.active == True).first()
+                if w_match:
+                    is_alert = True
+                    alert_type = "watchlist_vehicle"
+                    rule_fired = f"ALERT: WATCHLIST VEHICLE [{clean_p}] ({w_match.threat_level})"
+                    threat_score = 0.98
+            except Exception as e:
+                logger.warning(f"Error checking ANPR watchlist: {e}")
+
+        # 5. Event-Driven Intelligent Database Persistence & Throttling
         should_log = False
         if track_state is None:
             should_log = True
@@ -501,6 +513,8 @@ def detect_camera_frame(
             }
         else:
             time_since_log = now_ts - track_state["last_logged"]
+            if attrs.get("plate_text"):
+                track_state["plate"] = attrs.get("plate_text")
             if is_alert:
                 # Log immediately if rule escalated/changed (e.g. loitering -> weapon or breach)
                 if rule_fired != track_state.get("last_rule"):
@@ -517,7 +531,8 @@ def detect_camera_frame(
                 new_face = bool(attrs.get("face_name") and attrs.get("face_name") != "Unidentified" and attrs.get("face_name") != track_state.get("face"))
                 if new_plate or new_face:
                     should_log = True
-                    track_state["plate"] = attrs.get("plate_text")
+                    if attrs.get("plate_text"):
+                        track_state["plate"] = attrs.get("plate_text")
                     track_state["face"] = attrs.get("face_name")
                     track_state["last_logged"] = now_ts
                 elif time_since_log >= 60.0:

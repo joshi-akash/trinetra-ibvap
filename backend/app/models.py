@@ -163,3 +163,18 @@ class MediaTombstoneLog(Base):
     metadata_preserved = Column(JSON, nullable=True)
 
     entity = relationship("EntityLog", back_populates="tombstones")
+
+
+class PlateWatchlist(Base):
+    """
+    ANPR Target License Plate Watchlist / Hotlist.
+    Vehicles matching these registered plates trigger automated tactical alerts.
+    """
+    __tablename__ = "plate_watchlist"
+
+    plate_number = Column(String, primary_key=True, index=True)
+    threat_level = Column(String, default="HIGH")  # CRITICAL | HIGH | WATCHLIST
+    notes = Column(String, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+    active = Column(Boolean, default=True)
+

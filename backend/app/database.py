@@ -71,7 +71,7 @@ def _auto_migrate_sqlite(db_engine):
         pass
 
 def init_db():
-    from backend.app.models import User, CameraRegistry, EntityLog, FalseFlagLog, ExportLog, AuditLog
+    from backend.app.models import User, CameraRegistry, EntityLog, FalseFlagLog, ExportLog, AuditLog, PlateWatchlist
     Base.metadata.create_all(bind=engine)
     _auto_migrate_sqlite(engine)
     
