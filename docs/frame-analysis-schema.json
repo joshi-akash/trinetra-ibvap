@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FrameAnalysis",
+  "description": "Contract 1: AI Pipeline (Person A + B) to Backend (Person C) frame analysis payload",
+  "type": "object",
+  "required": ["camera_id", "timestamp", "frame_ref", "frame_quality", "entities"],
+  "properties": {
+    "camera_id": {
+      "type": "string",
+      "description": "Identifier of the camera producing the frame, e.g., CAM-01"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp of the captured frame"
+    },
+    "frame_ref": {
+      "type": "string",
+      "description": "Rolling ring-buffer pointer or unique frame index"
+    },
+    "frame_quality": {
+      "type": "object",
+      "required": ["low_light", "enhanced", "tamper_signal"],
+      "properties": {
+        "low_light": { "type": "boolean" },
+        "enhanced": { "type": "boolean" },
+        "tamper_signal": {
+          "type": "object",
+          "required": ["is_tampered", "laplacian_variance", "histogram_flag", "reference_point_drift"],
+          "properties": {
+            "is_tampered": { "type": "boolean" },
+            "laplacian_variance": { "type": "number" },
+            "histogram_flag": { "type": "boolean" },
+            "reference_point_drift": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["track_id", "entity_type", "bbox", "confidence", "attributes", "location"],
+        "properties": {
+          "track_id": {
+            "type": "string",
+            "description": "Temporary tracking UUID for this entity trajectory"
+          },
+          "entity_type": {
+            "type": "string",
+            "enum": ["human", "vehicle", "animal"],
+            "description": "Detected class of entity"
+          },
+          "bbox": {
+            "type": "array",
+            "items": { "type": "number" },
+            "minItems": 4,
+            "maxItems": 4,
+            "description": "[x_min, y_min, x_max, y_max] in pixels"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "upper_color": { "type": ["string", "null"] },
+              "lower_color": { "type": ["string", "null"] },
+              "height_cm": { "type": ["number", "null"] },
+              "gender": {
+                "type": ["string", "null"],
+                "enum": ["male", "female", "neutral", null]
+              },
+              "plate_text": { "type": ["string", "null"] },
+              "face_match": {
+                "type": ["object", "null"],
+                "properties": {
+                  "suspect_id": { "type": "string" },
+                  "confidence": { "type": "number" }
+                }
+              },
+              "posture": {
+                "type": ["string", "null"],
+                "enum": ["standing", "walking", "running", "crouching", "sprinting", "prone", null]
+              },
+              "props": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          },
+          "location": {
+            "type": "object",
+            "required": ["lat", "lon"],
+            "properties": {
+              "lat": { "type": "number" },
+              "lon": { "type": "number" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+[Unit]
+Description=TRINETRA Sovereign AI-CCTV Outpost Service (Native Edge)
+After=network.target local-fs.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=trinetra
+Group=trinetra
+WorkingDirectory=/opt/trinetra
+Environment="ENVIRONMENT=production"
+Environment="SOVEREIGN_OFFLINE=true"
+Environment="PYTHONPATH=/opt/trinetra"
+ExecStart=/opt/trinetra/venv/bin/python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --workers 1
+Restart=always
+RestartSec=5s
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

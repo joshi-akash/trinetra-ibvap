@@ -1,0 +1,44 @@
+services:
+  trinetra-edge:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: trinetra-edge-server
+    restart: always
+    environment:
+      - ENVIRONMENT=production
+      - BIND_HOST=0.0.0.0
+      - PORT=8000
+      - DATABASE_URL=sqlite:////app/trinetra.db
+      - JWT_SECRET=trinetra_production_sovereign_key_change_in_deployment_32chars
+      - SOVEREIGN_OFFLINE=true
+      - ENABLE_LOW_LIGHT_DCE=true
+    ports:
+      - "8000:8000"
+    volumes:
+      - trinetra-db:/app/trinetra.db
+      - ./models:/app/models
+      - ./backend/storage:/app/backend/storage
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./runs:/app/runs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # Optional Tactical MQTT Broker for External Sensor Telemetry
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: trinetra-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - mosquittodata:/mosquitto/data
+
+volumes:
+  trinetra-db:
+  mosquittodata:
