@@ -448,24 +448,6 @@ Coverage includes:
 
 </details>
 
-<br>
-
----
-
-## 📄 License
-
-*Add your license here (e.g. MIT, Apache-2.0, or a restricted/government-use license as applicable to this project).*
-
-<br>
-
----
-
-## 🤝 Contributing
-
-Issues and pull requests are welcome! Please open an issue describing the change before submitting a PR for anything beyond a small fix.
-
-<br>
-
 <div align="center">
 
 ---
